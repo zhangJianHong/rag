@@ -1,0 +1,69 @@
+"""
+应用配置设置
+从根目录的config.py移动而来，提供更好的模块化结构
+"""
+
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# 获取当前文件所在目录
+current_dir = Path(__file__).parent.parent.parent
+
+# 加载.env文件
+env_file = current_dir / '.env'
+if env_file.exists():
+    load_dotenv(env_file)
+else:
+    # 如果.env文件不存在，尝试从上级目录加载
+    parent_env = current_dir.parent / '.env'
+    if parent_env.exists():
+        load_dotenv(parent_env)
+    else:
+        print(f"警告: 未找到.env文件，使用系统环境变量")
+
+# 环境变量配置
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_URL = os.getenv("OPENAI_API_URL")
+DB_URL = os.getenv("DB_URL", "postgresql://user:pass@localhost:5432/ragdb")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "glm-4")
+
+# 日志配置
+LOG_DIR = os.getenv("LOG_DIR", "logs")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_MAX_SIZE = int(os.getenv("LOG_MAX_SIZE", "10485760"))  # 10MB
+LOG_BACKUP_COUNT = int(os.getenv("LOG_BACKUP_COUNT", "5"))
+LOG_ENABLE_CONSOLE = os.getenv("LOG_ENABLE_CONSOLE", "true").lower() == "true"
+LOG_ENABLE_FILE = os.getenv("LOG_ENABLE_FILE", "true").lower() == "true"
+
+# 检索配置
+USE_CHUNK_RETRIEVAL = os.getenv("USE_CHUNK_RETRIEVAL", "false").lower() == "true"
+EMBEDDING_BACKEND = os.getenv("EMBEDDING_BACKEND", "openai")
+HUGGINGFACE_MODEL = os.getenv("HUGGINGFACE_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "auto")
+
+# 验证必要的环境变量
+def validate_config():
+    """验证配置是否完整"""
+    missing_vars = []
+    
+    if not OPENAI_API_KEY:
+        missing_vars.append("OPENAI_API_KEY")
+    if not OPENAI_API_URL:
+        missing_vars.append("OPENAI_API_URL")
+    
+    if missing_vars:
+        print(f"警告: 缺少必要的环境变量: {', '.join(missing_vars)}")
+        return False
+    
+    print("配置验证通过")
+    return True
+
+# 在导入时验证配置
+if __name__ == "__main__":
+    validate_config()
+else:
+    # 只在非测试环境下验证
+    if not os.getenv("SKIP_CONFIG_VALIDATION"):
+        validate_config()

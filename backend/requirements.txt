@@ -1,0 +1,21 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+openai>=1.99.9
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+python-multipart==0.0.6
+pydantic>=2.7.4
+python-dotenv==1.0.0
+pypdf2==3.0.1
+numpy>=1.26.0
+
+# LangChain 相关依赖
+langchain>=0.1.0
+langchain-openai>=0.1.0
+langchain-huggingface>=0.1.0
+
+# HuggingFace 相关依赖
+sentence-transformers>=2.2.2
+torch>=2.0.0
+transformers>=4.30.0
+traceloop-sdk>=0.47.0

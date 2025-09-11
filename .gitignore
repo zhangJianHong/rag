@@ -1,0 +1,8 @@
+frontend/node_modules
+backend/venv
+postgres_data
+.env
+.DS_Store
+logs.txt
+*.log
+__pycache__
