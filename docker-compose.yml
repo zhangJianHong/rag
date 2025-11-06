@@ -1,8 +1,18 @@
 version: '3.8'
 
+networks:
+  rag-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  backend_uploads:
+  backend_logs:
+
 services:
   postgres:
     image: pgvector/pgvector:pg15
+    container_name: rag-postgres
     environment:
       POSTGRES_DB: ragdb
       POSTGRES_USER: raguser
@@ -11,38 +21,67 @@ services:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    networks:
+      - rag-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U raguser -d ragdb"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rag-backend
     environment:
       - DB_URL=postgresql://raguser:ragpass@postgres:5432/ragdb
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PYTHONPATH=/app
     ports:
       - "8000:8000"
+    networks:
+      - rag-network
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - backend_uploads:/app/uploads
+      - backend_logs:/app/logs
     command: >
       sh -c "python database.py && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rag-frontend
     ports:
       - "3000:3000"
+    networks:
+      - rag-network
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     volumes:
       - ./frontend:/app
       - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8000
-
-volumes:
-  postgres_data:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
