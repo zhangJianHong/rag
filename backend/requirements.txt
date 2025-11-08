@@ -1,21 +1,48 @@
+# Web Framework
 fastapi==0.104.1
 uvicorn==0.24.0
-openai>=1.99.9
+
+# Database & ORM
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
+
+# API & HTTP
 python-multipart==0.0.6
 pydantic>=2.7.4
+
+# Configuration & Environment
 python-dotenv==1.0.0
+
+# Document Processing
 pypdf2==3.0.1
+
+# AI & Machine Learning
+openai>=1.99.9
 numpy>=1.26.0
 
-# LangChain 相关依赖
+# LangChain Ecosystem
 langchain>=0.1.0
 langchain-openai>=0.1.0
 langchain-huggingface>=0.1.0
 
-# HuggingFace 相关依赖
+# HuggingFace AI Stack
 sentence-transformers>=2.2.2
 torch>=2.0.0
 transformers>=4.30.0
+
+# Monitoring & Observability
 traceloop-sdk>=0.47.0
+
+# Standard Library Extensions (included in Python but listed for clarity)
+# datetime - DateTime handling
+# json - JSON encoding/decoding
+# logging - Logging framework
+# os - Operating system interface
+# pathlib - Path handling
+# typing - Type hints
+# uuid - UUID generation
+# hashlib - Hash functions
+# re - Regular expressions
+# asyncio - Async programming
+# time - Time functions
+# shutil - File operations

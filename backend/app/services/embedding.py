@@ -17,8 +17,8 @@ class EmbeddingService:
     支持多种嵌入后端：OpenAI、HuggingFace本地模型等
     """
     
-    def __init__(self, 
-                 backend: str = "openai",
+    def __init__(self,
+                 backend: str = "huggingface",
                  model_name: Optional[str] = None,
                  device: str = "auto",
                  cache_size: int = 1000):
@@ -291,5 +291,5 @@ def create_embedding_service(backend: str = "openai", **kwargs) -> EmbeddingServ
 # 创建默认的嵌入服务实例
 # 可以通过环境变量 EMBEDDING_BACKEND 来指定后端类型
 import os
-default_backend = os.getenv("EMBEDDING_BACKEND", "openai")
+default_backend = os.getenv("EMBEDDING_BACKEND", "huggingface")
 embedding_service = create_embedding_service(backend=default_backend)

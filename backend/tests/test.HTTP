@@ -1,0 +1,8 @@
+POST http://localhost:8800/api/query
+Content-Type: application/json
+
+{
+  "query": "智能体与自动化任务编排方向执行方向",
+  "session_id": "test-session-001",
+  "use_rag": false
+}

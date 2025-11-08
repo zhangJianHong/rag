@@ -3,6 +3,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.database.connection import get_db
 from app.services.embedding import embedding_service
+from app.models.document import DocumentChunk
 from app.models.database import Document
 from app.models.schemas import DocumentResponse
 import PyPDF2
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # 配置常量
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
-MAX_CHUNK_SIZE = 8000  # 每个块的最大字符数
+MAX_CHUNK_SIZE = 8800  # 每个块的最大字符数
 CHUNK_OVERLAP = 200   # 块之间的重叠字符数
 
 def extract_text_from_pdf(file_path: str) -> str:
@@ -133,21 +134,41 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
         text_chunks = split_text_into_chunks(text_content)
         logger.info(f"Document split into {len(text_chunks)} chunks")
         
-        # 为每个块创建嵌入向量和文档记录
-        document_ids = []
+        # 第一步：创建主文档记录
+        from app.models.database import Document
+        import uuid
+
+        main_document = Document(
+            content=text_content,  # 完整文档内容
+            embedding=None,  # 主文档暂时不需要嵌入向量（如果需要可以为完整文档生成）
+            doc_metadata=json.dumps({
+                "filename": file.filename,
+                "size": len(file_content),
+                "type": file.filename.split('.')[-1],
+                "total_chunks": len(text_chunks),
+                "total_size": len(text_content)
+            }),
+            filename=file.filename,
+            created_at=str(datetime.now())
+        )
+
+        db.add(main_document)
+        db.commit()
+        db.refresh(main_document)
+
+        # 第二步：为每个块创建文档块记录
+        document_chunk_ids = []
         for i, chunk in enumerate(text_chunks):
             try:
                 # 生成向量嵌入
                 embedding = await embedding_service.create_embedding(chunk)
-                
-                # 创建文档记录
-                document = Document(
+
+                # 创建文档块记录，关联到主文档
+                document_chunk = DocumentChunk(
+                    document_id=main_document.id,  # ✅ 关联到主文档
                     content=chunk,
-                    embedding=embedding,
-                    doc_metadata=json.dumps({
-                        "filename": file.filename,
-                        "size": len(file_content),
-                        "type": file.filename.split('.')[-1],
+                    embedding=embedding,  # 直接使用向量列表（PostgreSQL ARRAY类型）
+                    chunk_metadata=json.dumps({
                         "chunk_index": i,
                         "total_chunks": len(text_chunks),
                         "chunk_size": len(chunk)
@@ -155,26 +176,27 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
                     filename=f"{file.filename}_chunk_{i+1}",
                     created_at=str(datetime.now())
                 )
-                
+
                 # 保存到数据库
-                db.add(document)
+                db.add(document_chunk)
                 db.commit()
-                db.refresh(document)
-                document_ids.append(document.id)
-                
+                db.refresh(document_chunk)
+                document_chunk_ids.append(document_chunk.id)
+
             except Exception as chunk_error:
                 logger.error(f"Error processing chunk {i+1}: {chunk_error}")
                 # 继续处理其他块，不中断整个上传过程
                 continue
         
-        if not document_ids:
+        if not document_chunk_ids:
             raise HTTPException(status_code=500, detail="Failed to process any chunks")
-        
+
         return {
             "message": "Document uploaded successfully",
-            "document_ids": document_ids,
+            "document_id": main_document.id,  # 主文档ID
+            "document_chunk_ids": document_chunk_ids,  # 所有分块ID
             "filename": file.filename,
-            "chunks_created": len(document_ids),
+            "chunks_created": len(document_chunk_ids),
             "total_chunks": len(text_chunks)
         }
         
@@ -202,3 +224,119 @@ async def list_documents(db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error listing documents: {e}")
         raise HTTPException(status_code=500, detail="Failed to list documents")
+
+@router.get("/documents/stats")
+async def get_document_stats(db: Session = Depends(get_db)):
+    """获取文档统计信息"""
+    try:
+        total_docs = db.query(Document).count()
+
+        # 按文件类型统计
+        docs_by_type = {}
+        documents = db.query(Document).all()
+        for doc in documents:
+            metadata = json.loads(doc.doc_metadata) if doc.doc_metadata else {}
+            file_type = metadata.get("file_type", "unknown")
+            docs_by_type[file_type] = docs_by_type.get(file_type, 0) + 1
+
+        # 最近7天的文档
+        from datetime import datetime, timedelta
+        recent_date = datetime.now() - timedelta(days=7)
+        recent_docs = db.query(Document).filter(Document.created_at >= recent_date).count()
+
+        return {
+            "total": total_docs,
+            "by_type": docs_by_type,
+            "recent": recent_docs
+        }
+    except Exception as e:
+        logger.error(f"Error getting document stats: {e}")
+        return {
+            "total": 0,
+            "by_type": {},
+            "recent": 0
+        }
+
+@router.get("/documents/{document_id}")
+async def get_document(document_id: int, db: Session = Depends(get_db)):
+    """获取单个文档详情"""
+    try:
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        return DocumentResponse(
+            id=document.id,
+            filename=document.filename,
+            content=document.content,
+            metadata=json.loads(document.doc_metadata) if document.doc_metadata else {},
+            created_at=document.created_at
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting document {document_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get document")
+
+@router.delete("/documents/{document_id}")
+async def delete_document(document_id: int, db: Session = Depends(get_db)):
+    """删除文档"""
+    try:
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        db.delete(document)
+        db.commit()
+        return {"message": "Document deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting document {document_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete document")
+
+@router.post("/documents/batch")
+async def delete_multiple_documents(document_ids: dict, db: Session = Depends(get_db)):
+    """批量删除文档"""
+    try:
+        ids = document_ids.get("ids", [])
+        if not ids:
+            raise HTTPException(status_code=400, detail="No document IDs provided")
+
+        deleted_count = db.query(Document).filter(Document.id.in_(ids)).delete(synchronize_session=False)
+        db.commit()
+        return {"message": f"Successfully deleted {deleted_count} documents"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error batch deleting documents: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete documents")
+
+@router.get("/documents/search")
+async def search_documents(query: str = "", db: Session = Depends(get_db)):
+    """搜索文档"""
+    try:
+        if not query:
+            return []
+
+        documents = db.query(Document).filter(
+            Document.filename.contains(query) |
+            Document.content.contains(query)
+        ).all()
+
+        return [
+            DocumentResponse(
+                id=doc.id,
+                filename=doc.filename,
+                content=doc.content[:200] + "..." if len(doc.content) > 200 else doc.content,
+                metadata=json.loads(doc.doc_metadata) if doc.doc_metadata else {},
+                created_at=doc.created_at
+            )
+            for doc in documents
+        ]
+    except Exception as e:
+        logger.error(f"Error searching documents: {e}")
+        raise HTTPException(status_code=500, detail="Failed to search documents")
+

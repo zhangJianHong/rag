@@ -1,5 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, create_engine, ARRAY, Float
-from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy import Column, Integer, String, Text, create_engine, Float, ARRAY
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -13,10 +12,10 @@ class Document(Base):
     存储文档内容和嵌入向量信息
     """
     __tablename__ = 'documents'
-    
+
     id = Column(Integer, primary_key=True)
     content = Column(Text, comment="文档内容")
-    embedding = Column(ARRAY(Float), comment="文档嵌入向量")  # 使用ARRAY存储数值向量
+    embedding = Column(Text, comment="文档嵌入向量")  # 暂时使用Text类型存储JSON格式的向量
     doc_metadata = Column(String, comment="文档元数据")  # 重命名避免与SQLAlchemy的metadata冲突
     filename = Column(String, comment="文件名")
     created_at = Column(String, default=lambda: str(datetime.now()), comment="创建时间")

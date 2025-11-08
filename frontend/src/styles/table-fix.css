@@ -1,0 +1,100 @@
+/* 强制覆盖Element Plus表格样式 - 最高优先级 */
+
+/* 重置所有表格相关元素的背景色 */
+.el-table,
+.el-table *,
+.el-table__header-wrapper,
+.el-table__body-wrapper,
+.el-table__header,
+.el-table__body,
+.el-table th,
+.el-table td,
+.el-table tr {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* 表头样式 */
+.el-table th,
+.el-table__header th,
+.el-table__header th.el-table__cell,
+.el-table .el-table__header-wrapper th.el-table__cell {
+  background-color: rgba(0, 240, 255, 0.12) !important;
+  background: rgba(0, 240, 255, 0.12) !important;
+  color: #ffffff !important;
+  border-bottom: 2px solid rgba(0, 240, 255, 0.4) !important;
+  font-weight: 700 !important;
+}
+
+/* 表格单元格样式 */
+.el-table td,
+.el-table__body td,
+.el-table__body td.el-table__cell,
+.el-table .el-table__body-wrapper td.el-table__cell {
+  background-color: transparent !important;
+  background: transparent !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* 斑马纹样式 */
+.el-table--striped .el-table__body tr.el-table__row--striped td {
+  background-color: rgba(0, 240, 255, 0.05) !important;
+  background: rgba(0, 240, 255, 0.05) !important;
+}
+
+/* 悬停效果 */
+.el-table .el-table__body tr:hover > td,
+.el-table__body tr:hover > td {
+  background-color: rgba(0, 240, 255, 0.08) !important;
+  background: rgba(0, 240, 255, 0.08) !important;
+}
+
+/* Element Plus组件级别的样式覆盖 */
+div.el-table {
+  background-color: transparent !important;
+}
+
+div.el-table .el-table__header-wrapper {
+  background-color: transparent !important;
+}
+
+div.el-table .el-table__body-wrapper {
+  background-color: transparent !important;
+}
+
+/* 最强级别的覆盖 */
+body .el-table th,
+body .el-table td {
+  background-color: transparent !important;
+}
+
+body .el-table th {
+  background-color: rgba(0, 240, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+/* 针对scoped样式的覆盖 */
+div[data-v-817427b0] .el-table th,
+div[data-v-817427b0] .el-table td {
+  background-color: transparent !important;
+}
+
+div[data-v-817427b0] .el-table th {
+  background-color: rgba(0, 240, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+/* 每个具体的选择器组合 */
+.el-table .el-table__header-wrapper table.el-table__header thead tr th {
+  background-color: rgba(0, 240, 255, 0.12) !important;
+  color: #ffffff !important;
+  border-bottom: 2px solid rgba(0, 240, 255, 0.4) !important;
+  font-weight: 700 !important;
+}
+
+.el-table .el-table__body-wrapper table.el-table__body tbody tr td {
+  background-color: transparent !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+}

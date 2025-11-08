@@ -8,7 +8,7 @@ export default defineConfig({
     host: '0.0.0.0', // 允许外部访问
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8800', // 使用IPv4地址
+        target: 'http://127.0.0.1:8800', // 后端API服务器
         changeOrigin: true,
         secure: false,
         ws: true, // 支持WebSocket

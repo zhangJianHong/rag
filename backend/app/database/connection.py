@@ -4,27 +4,36 @@
 """
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 from app.config.settings import DB_URL
 import logging
 
 logger = logging.getLogger(__name__)
 
-def get_db():
+# 全局变量存储引擎和会话工厂
+_engine = None
+_session_factory = None
+
+def get_engine():
+    """获取数据库引擎（单例模式）"""
+    global _engine
+    if _engine is None:
+        _engine = create_engine(DB_URL, pool_pre_ping=True)
+        logger.info(f"Database engine created for: {DB_URL}")
+    return _engine
+
+def get_session_local():
+    """获取会话工厂（单例模式）"""
+    global _session_factory
+    if _session_factory is None:
+        _session_factory = sessionmaker(autocommit=False, autoflush=False, bind=get_engine())
+    return _session_factory
+
+def get_db() -> Session:
     """获取数据库会话"""
-    engine = create_engine(DB_URL)
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    SessionLocal = get_session_local()
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
-
-def get_engine():
-    """获取数据库引擎"""
-    return create_engine(DB_URL)
-
-def get_session_local():
-    """获取会话工厂"""
-    engine = create_engine(DB_URL)
-    return sessionmaker(autocommit=False, autoflush=False, bind=engine)

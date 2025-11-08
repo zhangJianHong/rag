@@ -61,10 +61,10 @@ echo ""
 echo "🌐 访问地址:"
 if [ "$ENVIRONMENT" = "prod" ]; then
     echo "   前端: http://localhost"
-    echo "   后端: http://localhost:8000"
+    echo "   后端: http://localhost:8800"
 else
     echo "   前端: http://localhost:3000"
-    echo "   后端: http://localhost:8000"
+    echo "   后端: http://localhost:8800"
 fi
 echo "   数据库: localhost:5432"
 echo ""

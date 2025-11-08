@@ -166,6 +166,28 @@ onMounted(() => {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
+  height: calc(100vh - 64px - 48px); /* minus header height and padding */
+  overflow-y: auto;
+  overflow-x: auto; /* allow horizontal scroll */
+
+  /* custom scrollbar */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.3);
+    border-radius: 4px;
+
+    &:hover {
+      background: rgba(0, 212, 255, 0.5);
+    }
+  }
 }
 
 .upload-card,
