@@ -79,7 +79,7 @@ npm install
 ```bash
 cd backend
 source venv/bin/activate
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8800
 ```
 
 ### 启动前端服务
@@ -186,7 +186,7 @@ npm run dev
    - 确认文件内容可读
 
 4. **前端无法访问后端 API**
-   - 检查后端服务是否运行在 8000 端口
+   - 检查后端服务是否运行在 8800 端口
    - 确认 CORS 配置正确
    - 检查防火墙设置
 

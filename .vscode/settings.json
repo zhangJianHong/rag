@@ -1,0 +1,26 @@
+{
+    "python.defaultInterpreterPath": "env/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.analysis.extraPaths": [
+        "./backend"
+    ],
+    "python.analysis.autoImportCompletions": true,
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.formatting.provider": "black",
+    "python.analysis.typeCheckingMode": "basic",
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/backend/cache": true,
+        "**/backend/temp": true,
+        "**/backend/logs": true
+    },
+    "python.terminal.executeInFileDir": false,
+    "python.terminal.launchArgs": [
+        "-c",
+        "import sys; print('Python 解释器路径:', sys.executable)"
+    ]
+}

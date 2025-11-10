@@ -1,0 +1,273 @@
+// Element Plus 组件科技感覆盖样式
+@use './theme.scss' as *;
+
+// 全局背景和文字
+body {
+  background: var(--tech-bg-primary);
+  color: var(--tech-text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+// Element Plus 主题覆盖
+.el-button {
+  &--primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: 1px solid rgba(102, 126, 234, 0.5);
+    color: white;
+    transition: all var(--tech-transition-normal);
+
+    &:hover {
+      background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      border-color: var(--tech-neon-purple);
+      box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+      transform: translateY(-2px);
+    }
+  }
+
+  &--default {
+    background: var(--tech-glass-bg);
+    border: 1px solid var(--tech-glass-border);
+    color: var(--tech-text-primary);
+    backdrop-filter: var(--tech-backdrop-blur);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: var(--tech-neon-blue);
+      color: var(--tech-neon-blue);
+    }
+  }
+}
+
+// 输入框
+.el-input {
+  .el-input__wrapper {
+    background: var(--tech-glass-bg);
+    border: 1px solid var(--tech-glass-border);
+    backdrop-filter: var(--tech-backdrop-blur);
+    box-shadow: none;
+    transition: all var(--tech-transition-normal);
+
+    &:hover {
+      border-color: var(--tech-border-hover);
+    }
+
+    &.is-focus {
+      border-color: var(--tech-neon-blue);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+    }
+  }
+
+  .el-input__inner {
+    color: var(--tech-text-primary);
+    background: transparent;
+
+    &::placeholder {
+      color: var(--tech-text-muted);
+    }
+  }
+}
+
+.el-textarea {
+  .el-textarea__inner {
+    background: var(--tech-glass-bg);
+    border: 1px solid var(--tech-glass-border);
+    color: var(--tech-text-primary);
+    backdrop-filter: var(--tech-backdrop-blur);
+
+    &:focus {
+      border-color: var(--tech-neon-blue);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+    }
+
+    &::placeholder {
+      color: var(--tech-text-muted);
+    }
+  }
+}
+
+// 卡片
+.el-card {
+  background: var(--tech-glass-bg);
+  border: 1px solid var(--tech-glass-border);
+  backdrop-filter: var(--tech-backdrop-blur);
+  color: var(--tech-text-primary);
+  transition: all var(--tech-transition-normal);
+
+  &:hover {
+    box-shadow: var(--tech-shadow-glow);
+    border-color: var(--tech-border-hover);
+  }
+
+  .el-card__header {
+    border-bottom: 1px solid var(--tech-glass-border);
+    background: rgba(255, 255, 255, 0.02);
+  }
+}
+
+// 菜单
+.el-menu {
+  background: transparent !important;
+  border: none !important;
+
+  .el-menu-item {
+    color: var(--tech-text-secondary);
+    background: transparent;
+    transition: all var(--tech-transition-normal);
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 3px;
+      height: 0;
+      background: var(--tech-gradient-secondary);
+      transition: height var(--tech-transition-normal);
+    }
+
+    &:hover {
+      color: var(--tech-neon-blue);
+      background: rgba(0, 212, 255, 0.05);
+    }
+
+    &.is-active {
+      color: var(--tech-neon-blue);
+      background: rgba(0, 212, 255, 0.1);
+
+      &::before {
+        height: 100%;
+      }
+    }
+  }
+}
+
+// 表格
+.el-table {
+  background: transparent;
+  color: var(--tech-text-primary);
+
+  &::before {
+    background: var(--tech-glass-border);
+  }
+
+  .el-table__header-wrapper {
+    th {
+      background: rgba(255, 255, 255, 0.03);
+      border-bottom: 1px solid var(--tech-glass-border);
+      color: var(--tech-text-primary);
+    }
+  }
+
+  .el-table__body-wrapper {
+    tr {
+      background: transparent;
+
+      &:hover td {
+        background: rgba(0, 212, 255, 0.05);
+      }
+    }
+
+    td {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      color: var(--tech-text-secondary);
+    }
+  }
+}
+
+// 上传组件
+.el-upload-dragger {
+  background: var(--tech-glass-bg);
+  border: 2px dashed var(--tech-glass-border);
+  backdrop-filter: var(--tech-backdrop-blur);
+  transition: all var(--tech-transition-normal);
+
+  &:hover {
+    border-color: var(--tech-neon-blue);
+    background: rgba(0, 212, 255, 0.05);
+  }
+
+  .el-icon--upload {
+    color: var(--tech-neon-blue);
+    font-size: 60px;
+  }
+
+  .el-upload__text {
+    color: var(--tech-text-primary);
+
+    em {
+      color: var(--tech-neon-blue);
+    }
+  }
+}
+
+// 消息提示
+.el-message {
+  background: var(--tech-glass-bg);
+  border: 1px solid var(--tech-glass-border);
+  backdrop-filter: var(--tech-backdrop-blur);
+  color: var(--tech-text-primary);
+  box-shadow: var(--tech-shadow-glow);
+
+  &--success {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: var(--tech-neon-green);
+
+    .el-message__icon {
+      color: var(--tech-neon-green);
+    }
+  }
+
+  &--warning {
+    background: rgba(251, 191, 36, 0.1);
+    border-color: var(--tech-neon-yellow);
+
+    .el-message__icon {
+      color: var(--tech-neon-yellow);
+    }
+  }
+
+  &--error {
+    background: rgba(236, 72, 153, 0.1);
+    border-color: var(--tech-neon-pink);
+
+    .el-message__icon {
+      color: var(--tech-neon-pink);
+    }
+  }
+}
+
+// 滚动条
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--tech-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--tech-glass-border);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--tech-border-hover);
+  }
+}
+
+// 加载动画
+.el-loading-mask {
+  background: rgba(10, 14, 26, 0.8);
+
+  .el-loading-spinner {
+    .circular circle {
+      stroke: var(--tech-neon-blue);
+    }
+
+    .el-loading-text {
+      color: var(--tech-text-primary);
+    }
+  }
+}

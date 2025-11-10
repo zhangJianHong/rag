@@ -1,0 +1,80 @@
+/* 全局样式 - 科技感主题 */
+:root {
+  /* 主色调 */
+  --tech-bg-primary: #0a0e1a;
+  --tech-bg-secondary: #111827;
+  --tech-bg-tertiary: #1a1f2e;
+  --tech-bg-card: rgba(17, 24, 39, 0.6);
+
+  /* 霓虹色系 */
+  --tech-neon-blue: #00d4ff;
+  --tech-neon-purple: #a855f7;
+  --tech-neon-pink: #ec4899;
+  --tech-neon-green: #10b981;
+  --tech-neon-yellow: #fbbf24;
+
+  /* 文字颜色 */
+  --tech-text-primary: #f3f4f6;
+  --tech-text-secondary: #9ca3af;
+  --tech-text-muted: #6b7280;
+
+  /* 边框和阴影 */
+  --tech-border-color: rgba(99, 102, 241, 0.2);
+  --tech-border-hover: rgba(99, 102, 241, 0.4);
+  --tech-glass-bg: rgba(255, 255, 255, 0.03);
+  --tech-glass-border: rgba(255, 255, 255, 0.1);
+  --tech-shadow-glow: 0 0 30px rgba(0, 212, 255, 0.3);
+
+  /* 渐变和发光效果 */
+  --tech-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --tech-gradient-blue: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+  --tech-glow: 0 4px 20px rgba(0, 240, 255, 0.4);
+}
+
+/* 重置基础样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--tech-bg-primary);
+  color: var(--tech-text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.6;
+}
+
+/* 网格背景效果 */
+.tech-grid-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  z-index: -1;
+  opacity: 0.3;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--tech-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--tech-glass-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--tech-border-hover);
+}

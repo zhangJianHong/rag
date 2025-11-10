@@ -6,3 +6,6 @@ postgres_data
 logs.txt
 *.log
 __pycache__
+venv
+*.log
+frontend/dist

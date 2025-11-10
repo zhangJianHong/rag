@@ -1,0 +1,134 @@
+// 个人中心页面样式
+.profile-page {
+  // 继承科技风主题变量
+  background: var(--tech-bg-primary);
+  min-height: 100vh;
+
+  // 动画增强
+  .profile-avatar {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 40px currentColor;
+    }
+  }
+
+  // 卡片悬浮效果
+  .hover-card {
+    transition: all 0.3s ease;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 212, 255, 0.15);
+      border-color: var(--tech-neon-blue);
+    }
+  }
+
+  // 密码强度指示器动画
+  .strength-indicator {
+    .strength-bar {
+      position: relative;
+      overflow: hidden;
+
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+        animation: shimmer 2s infinite;
+      }
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+// 权限标签特殊样式
+.permission-tag {
+  position: relative;
+
+  &.has-permission {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: var(--tech-neon-green);
+
+    &::before {
+      content: '✓';
+      position: absolute;
+      left: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      font-weight: bold;
+    }
+  }
+
+  &.no-permission {
+    background: linear-gradient(135deg, rgba(156, 163, 175, 0.1), rgba(156, 163, 175, 0.05));
+    border: 1px solid rgba(156, 163, 175, 0.3);
+    color: var(--tech-text-muted);
+
+    &::before {
+      content: '✕';
+      position: absolute;
+      left: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      font-weight: bold;
+    }
+  }
+}
+
+// 滚动条美化
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--tech-bg-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--tech-neon-blue), var(--tech-neon-purple));
+  border-radius: 4px;
+
+  &:hover {
+    background: linear-gradient(135deg, var(--tech-neon-purple), var(--tech-neon-pink));
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .profile-avatar-section {
+    flex-direction: column;
+    text-align: center;
+    gap: 20px;
+  }
+
+  .account-status {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .permission-tags {
+    flex-direction: column;
+  }
+}

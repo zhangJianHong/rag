@@ -1,0 +1,466 @@
+/* Element Plus 科技感主题覆盖 */
+
+/* 按钮优化 */
+.el-button--primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 1px solid rgba(102, 126, 234, 0.5);
+  color: white;
+  font-weight: 500;
+}
+
+.el-button--primary:hover {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  border-color: var(--tech-neon-purple);
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+}
+
+/* 输入框优化 */
+.el-input__wrapper {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.el-input__wrapper:hover {
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.el-input__wrapper.is-focus {
+  border-color: var(--tech-neon-blue);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.1);
+}
+
+.el-input__inner {
+  color: var(--tech-text-primary);
+  background: transparent;
+}
+
+/* 卡片优化 */
+.el-card {
+  background: rgba(17, 24, 39, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  color: var(--tech-text-primary);
+}
+
+.el-card:hover {
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+/* 菜单优化 */
+.el-menu {
+  background: transparent !important;
+  border: none !important;
+}
+
+.el-menu-item {
+  color: #9ca3af;
+  background: transparent;
+}
+
+.el-menu-item:hover {
+  color: var(--tech-neon-blue);
+  background: rgba(0, 212, 255, 0.05);
+}
+
+.el-menu-item.is-active {
+  color: var(--tech-neon-blue);
+  background: rgba(0, 212, 255, 0.1);
+}
+
+/* 表格优化 */
+.el-table {
+  background: transparent;
+  color: var(--tech-text-primary);
+}
+
+.el-table th.el-table__cell {
+  background: rgba(0, 240, 255, 0.05) !important;
+  color: var(--tech-text-primary) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 600;
+}
+
+.el-table td.el-table__cell {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--tech-text-secondary);
+}
+
+.el-table tr:hover td {
+  background: rgba(0, 212, 255, 0.05);
+}
+
+.el-table .el-table__header-wrapper {
+  background: rgba(0, 240, 255, 0.05);
+}
+
+/* 消息提示优化 */
+.el-message {
+  background: rgba(17, 24, 39, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  color: var(--tech-text-primary);
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.2);
+}
+
+/* 开关优化 */
+.el-switch.is-checked .el-switch__core {
+  background: var(--tech-neon-blue);
+  border-color: var(--tech-neon-blue);
+}
+
+/* 选择器优化 */
+.el-select-dropdown {
+  background: rgba(17, 24, 39, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.el-select-dropdown__item {
+  color: var(--tech-text-secondary);
+}
+
+.el-select-dropdown__item:hover {
+  background: rgba(0, 212, 255, 0.1);
+  color: var(--tech-neon-blue);
+}
+
+.el-select-dropdown__item.selected {
+  color: var(--tech-neon-blue);
+}
+
+/* Tabs优化 */
+.el-tabs__item {
+  color: var(--tech-text-secondary);
+}
+
+.el-tabs__item:hover {
+  color: var(--tech-neon-blue);
+}
+
+.el-tabs__item.is-active {
+  color: var(--tech-neon-blue);
+}
+
+.el-tabs__active-bar {
+  background: var(--tech-neon-blue);
+}
+
+/* 滑块优化 */
+.el-slider__runway {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.el-slider__bar {
+  background: linear-gradient(90deg, var(--tech-neon-blue), var(--tech-neon-purple));
+}
+
+.el-slider__button {
+  border-color: var(--tech-neon-blue);
+  background: var(--tech-bg-secondary);
+}
+
+/* 上传组件 */
+.el-upload-dragger {
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.el-upload-dragger:hover {
+  border-color: var(--tech-neon-blue);
+  background: rgba(0, 212, 255, 0.05);
+}
+
+/* 对话框科技感样式 */
+.el-dialog {
+  border-radius: 12px;
+  overflow: hidden;
+  animation: dialogFadeIn 0.3s ease-out;
+  border: none !important;
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.3) !important;
+}
+
+/* 对话框遮罩层 */
+.v-modal {
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(5px);
+}
+
+.el-overlay {
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(5px);
+}
+
+@keyframes dialogFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.el-dialog__header {
+  background: rgba(17, 24, 39, 0.95) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 20px 24px;
+  backdrop-filter: blur(10px);
+}
+
+.el-dialog__title {
+  color: var(--tech-text-primary) !important;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.el-dialog__headerbtn .el-icon {
+  color: var(--tech-text-secondary);
+  font-size: 20px;
+}
+
+.el-dialog__headerbtn .el-icon:hover {
+  color: var(--tech-neon-blue);
+}
+
+.el-dialog__body {
+  background: rgba(17, 24, 39, 0.95) !important;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+  color: var(--tech-text-primary) !important;
+}
+
+.el-dialog__footer {
+  background: rgba(17, 24, 39, 0.95) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px 24px;
+  backdrop-filter: blur(10px);
+}
+
+/* 对话框内表单样式 */
+.el-form-item__label {
+  color: var(--tech-text-primary);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.el-form-item__content .el-input__wrapper,
+.el-form-item__content .el-select__wrapper,
+.el-form-item__content .el-textarea__inner,
+.el-form-item__content .el-input-number__input {
+  background: rgba(0, 240, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+  border-radius: 6px;
+}
+
+.el-form-item__content .el-input__wrapper:hover,
+.el-form-item__content .el-select__wrapper:hover,
+.el-form-item__content .el-textarea__inner:hover {
+  border-color: var(--tech-neon-blue);
+}
+
+.el-form-item__content .el-input__wrapper.is-focus,
+.el-form-item__content .el-select__wrapper.is-focus,
+.el-form-item__content .el-textarea__inner.is-focus {
+  border-color: var(--tech-neon-blue);
+  box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.2);
+}
+
+.el-form-item__content .el-input__inner,
+.el-form-item__content .el-textarea__inner,
+.el-form-item__content .el-input-number__input {
+  color: var(--tech-text-primary);
+  background: transparent;
+}
+
+.el-form-item__content .el-input__inner::placeholder,
+.el-form-item__content .el-textarea__inner::placeholder {
+  color: var(--tech-text-secondary);
+}
+
+.el-form-item__content .el-select .el-input__inner {
+  color: var(--tech-text-primary);
+}
+
+/* 数字输入框 */
+.el-form-item__content .el-input-number {
+  width: 100%;
+}
+
+.el-form-item__content .el-input-number__decrease,
+.el-form-item__content .el-input-number__increase {
+  background: rgba(0, 240, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--tech-text-secondary);
+}
+
+.el-form-item__content .el-input-number__decrease:hover,
+.el-form-item__content .el-input-number__increase:hover {
+  color: var(--tech-neon-blue);
+}
+
+/* 开关 */
+.el-form-item__content .el-switch .el-switch__core {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.el-form-item__content .el-switch.is-checked .el-switch__core {
+  background: var(--tech-neon-blue);
+  border-color: var(--tech-neon-blue);
+}
+
+/* 下拉选择器 */
+.el-form-item__content .el-select-dropdown {
+  background: rgba(17, 24, 39, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.el-form-item__content .el-select-dropdown__item {
+  color: var(--tech-text-secondary);
+}
+
+.el-form-item__content .el-select-dropdown__item.hover,
+.el-form-item__content .el-select-dropdown__item:hover {
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--tech-neon-blue);
+}
+
+.el-form-item__content .el-select-dropdown__item.selected {
+  color: var(--tech-neon-blue);
+  font-weight: 600;
+}
+
+/* 分割线 */
+.el-divider {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.el-divider__text {
+  color: var(--tech-text-secondary);
+  background: rgba(17, 24, 39, 0.95);
+}
+
+/* 场景配置表格样式 */
+.el-tab-pane .el-table,
+.el-table {
+  background: transparent !important;
+}
+
+/* 斑马纹表格行样式 */
+.el-table--striped .el-table__body tr.el-table__row--striped td {
+  background: rgba(0, 240, 255, 0.02) !important;
+}
+
+.el-tab-pane .el-table th.el-table__cell,
+.el-table th.el-table__cell {
+  background: rgba(0, 240, 255, 0.05) !important;
+  color: var(--tech-text-primary) !important;
+  border-bottom: 1px solid var(--tech-glass-border) !important;
+  font-weight: 600;
+}
+
+.el-tab-pane .el-table td.el-table__cell,
+.el-table td.el-table__cell {
+  border-bottom: 1px solid var(--tech-glass-border) !important;
+  color: var(--tech-text-secondary) !important;
+  background: transparent !important;
+}
+
+.el-tab-pane .el-table .el-table__row:hover td,
+.el-table .el-table__row:hover td {
+  background: rgba(0, 212, 255, 0.05) !important;
+}
+
+.el-tab-pane .el-table__header-wrapper,
+.el-table__header-wrapper {
+  background: rgba(0, 240, 255, 0.05) !important;
+}
+
+/* 最强优先级 - 针对所有表格 */
+div.el-table.el-table--striped.el-table--fit.el-table--enable-row-hover.el-table--enable-row-transition,
+div.el-table.el-table--border.el-table--fit.el-table--enable-row-hover.el-table--enable-row-transition {
+  background: transparent !important;
+}
+
+div.el-table.el-table--striped .el-table__header-wrapper {
+  background: rgba(0, 240, 255, 0.05) !important;
+}
+
+div.el-table.el-table--striped .el-table__body-wrapper {
+  background: transparent !important;
+}
+
+/* 强制覆盖所有表格单元格 */
+.el-table td.el-table__cell,
+.el-table th.el-table__cell {
+  background: transparent !important;
+}
+
+.el-table th.el-table__cell {
+  background: rgba(0, 240, 255, 0.05) !important;
+}
+
+/* Element Plus默认样式覆盖 */
+body .el-table {
+  background-color: transparent !important;
+}
+
+body .el-table th,
+body .el-table td {
+  background-color: transparent !important;
+}
+
+body .el-table th {
+  background: rgba(0, 240, 255, 0.05) !important;
+}
+
+/* 表格容器和wrapper样式 */
+.el-table .el-table__header-wrapper,
+.el-table .el-table__body-wrapper {
+  background: transparent !important;
+}
+
+/* 表头具体样式覆盖 */
+.el-table .el-table__header,
+.el-table__header th.el-table__cell {
+  background: rgba(0, 240, 255, 0.08) !important;
+  color: var(--tech-text-primary) !important;
+  border-bottom: 2px solid rgba(0, 240, 255, 0.2) !important;
+}
+
+/* 表体样式覆盖 */
+.el-table .el-table__body {
+  background: transparent !important;
+}
+
+.el-table__body tr {
+  background: transparent !important;
+}
+
+.el-table__body td.el-table__cell {
+  background: transparent !important;
+  color: var(--tech-text-secondary) !important;
+  border-bottom: 1px solid var(--tech-glass-border) !important;
+}
+
+/* 斑马纹覆盖 */
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: rgba(0, 240, 255, 0.03) !important;
+}
+
+/* 最强级别选择器 */
+div.el-table div.el-table__header-wrapper table.el-table__header thead tr th {
+  background: rgba(0, 240, 255, 0.08) !important;
+  color: var(--tech-text-primary) !important;
+}
+
+div.el-table div.el-table__body-wrapper table.el-table__body tbody tr td {
+  background: transparent !important;
+  color: var(--tech-text-secondary) !important;
+}

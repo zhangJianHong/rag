@@ -6,9 +6,10 @@ from app.services.embedding import embedding_service
 from app.services.retrieval import retrieval_service
 from app.services.advanced_retrieval import advanced_retrieval_service
 from app.services.generation import generation_service
-from app.models.database import Query
+from app.models.database import Query, UserQuery, User
 from app.models.schemas import QueryRequest, QueryResponse
 from app.config.logging_config import get_app_logger
+from app.middleware.auth import require_query_ask
 import json
 from datetime import datetime
 import re
@@ -18,7 +19,11 @@ router = APIRouter()
 logger = get_app_logger()
 
 @router.post("/query", response_model=QueryResponse)
-async def query_documents(request: QueryRequest, db: Session = Depends(get_db)):
+async def query_documents(
+    request: QueryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_query_ask)
+):
     """处理文档查询请求"""
     import os
     import time
@@ -26,7 +31,7 @@ async def query_documents(request: QueryRequest, db: Session = Depends(get_db)):
     
     try:
         # 检查是否启用文档分块检索
-        use_chunks = os.getenv("USE_CHUNK_RETRIEVAL", "false").lower() == "true"
+        use_chunks = os.getenv("USE_CHUNK_RETRIEVAL", "true").lower() == "true"
         
         if use_chunks:
             # 使用文档分块检索
@@ -57,13 +62,15 @@ async def query_documents(request: QueryRequest, db: Session = Depends(get_db)):
         response = await generation_service.generate_response(request.query, context)
         
         # 保存查询历史
-        query_record = Query(
+        # 创建用户查询记录
+        user_query_record = UserQuery(
+            user_id=current_user.id,
             query_text=request.query,
             response=response,
             sources=json.dumps(retrieved_docs),
             created_at=str(datetime.now())
         )
-        db.add(query_record)
+        db.add(user_query_record)
         db.commit()
         
         # 准备返回的源文档信息
@@ -101,12 +108,24 @@ async def query_documents(request: QueryRequest, db: Session = Depends(get_db)):
         logger.error(f"Error processing query: {e}")
         raise HTTPException(status_code=500, detail=f"Query processing failed: {str(e)}")
 
-@router.get("/history")
-async def get_query_history(db: Session = Depends(get_db)):
-    """获取查询历史记录"""
+@router.get("/query/history")
+async def get_query_history(
+    page: int = 1,
+    page_size: int = 20,
+    db: Session = Depends(get_db)
+):
+    """获取查询历史记录 - 支持分页"""
     try:
-        queries = db.query(Query).order_by(Query.created_at.desc()).limit(50).all()
-        
+        # 计算总数
+        total = db.query(Query).count()
+
+        # 获取分页查询
+        queries = db.query(Query)\
+            .order_by(Query.created_at.desc())\
+            .offset((page - 1) * page_size)\
+            .limit(page_size)\
+            .all()
+
         history = []
         for query in queries:
             history.append({
@@ -114,10 +133,17 @@ async def get_query_history(db: Session = Depends(get_db)):
                 "query": query.query_text,
                 "response": query.response[:200] + "..." if len(query.response) > 200 else query.response,
                 "sources": json.loads(query.sources) if query.sources else [],
-                "created_at": query.created_at
+                "created_at": query.created_at if query.created_at else None
             })
-        
-        return history
+
+        # 返回分页数据和元信息
+        return {
+            "data": history,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size
+        }
         
     except Exception as e:
         logger.error(f"Error getting query history: {e}")

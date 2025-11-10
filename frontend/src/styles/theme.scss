@@ -1,0 +1,151 @@
+// 科技感主题变量定义
+:root {
+  // 主色调 - 深色背景
+  --tech-bg-primary: #0a0e1a;
+  --tech-bg-secondary: #111827;
+  --tech-bg-tertiary: #1a1f2e;
+  --tech-bg-card: rgba(17, 24, 39, 0.6);
+
+  // 霓虹色系
+  --tech-neon-blue: #00d4ff;
+  --tech-neon-purple: #a855f7;
+  --tech-neon-pink: #ec4899;
+  --tech-neon-green: #10b981;
+  --tech-neon-yellow: #fbbf24;
+
+  // 渐变色
+  --tech-gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --tech-gradient-secondary: linear-gradient(135deg, #00d4ff 0%, #0099ff 100%);
+  --tech-gradient-accent: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --tech-gradient-mesh: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+
+  // 文字颜色
+  --tech-text-primary: #f3f4f6;
+  --tech-text-secondary: #9ca3af;
+  --tech-text-muted: #6b7280;
+  --tech-text-accent: var(--tech-neon-blue);
+
+  // 边框
+  --tech-border-color: rgba(99, 102, 241, 0.2);
+  --tech-border-hover: rgba(99, 102, 241, 0.4);
+  --tech-border-glow: 0 0 20px rgba(0, 212, 255, 0.5);
+
+  // 阴影
+  --tech-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --tech-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
+  --tech-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.6);
+  --tech-shadow-glow: 0 0 30px rgba(0, 212, 255, 0.3);
+  --tech-shadow-neon: 0 0 40px rgba(168, 85, 247, 0.4);
+
+  // 玻璃效果
+  --tech-glass-bg: rgba(255, 255, 255, 0.03);
+  --tech-glass-border: rgba(255, 255, 255, 0.1);
+  --tech-backdrop-blur: blur(10px);
+
+  // 动画时长
+  --tech-transition-fast: 0.2s;
+  --tech-transition-normal: 0.3s;
+  --tech-transition-slow: 0.5s;
+
+  // 圆角
+  --tech-radius-sm: 4px;
+  --tech-radius-md: 8px;
+  --tech-radius-lg: 12px;
+  --tech-radius-xl: 16px;
+}
+
+// 玻璃拟态混入
+@mixin glass-effect {
+  background: var(--tech-glass-bg);
+  backdrop-filter: var(--tech-backdrop-blur);
+  border: 1px solid var(--tech-glass-border);
+  box-shadow: var(--tech-shadow-md);
+}
+
+// 霓虹发光效果混入
+@mixin neon-glow($color: var(--tech-neon-blue)) {
+  box-shadow:
+    0 0 5px $color,
+    0 0 10px $color,
+    0 0 20px $color,
+    0 0 40px $color;
+  border-color: $color;
+}
+
+// 渐变文字混入
+@mixin gradient-text($gradient: var(--tech-gradient-secondary)) {
+  background: $gradient;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+// 悬停动画混入
+@mixin hover-lift {
+  transition: all var(--tech-transition-normal) ease;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--tech-shadow-glow);
+  }
+}
+
+// 脉冲动画
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 1;
+    box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 30px rgba(0, 212, 255, 0.8);
+  }
+}
+
+// 渐变动画
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+// 扫描线动画
+@keyframes scan-line {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+// 网格背景
+.tech-grid-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image:
+    linear-gradient(rgba(0, 212, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 212, 255, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  z-index: -1;
+  opacity: 0.3;
+}
+
+// 粒子效果容器
+.tech-particles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+}

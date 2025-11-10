@@ -175,7 +175,7 @@ frontend/
   ```javascript
   import axios from 'axios';
 
-  const api = axios.create({ baseURL: 'http://localhost:8000' });
+  const api = axios.create({ baseURL: 'http://localhost:8800' });
 
   // 上传
   async function uploadFile(file) {

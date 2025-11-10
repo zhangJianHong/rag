@@ -42,15 +42,26 @@ class RetrievalService:
             document_embeddings = []
             
             for row in result:
+                # 解析JSON格式的embedding
+                embedding = None
+                if row.embedding:
+                    try:
+                        import json
+                        embedding = json.loads(row.embedding)
+                    except (json.JSONDecodeError, TypeError):
+                        logger.error(f"Failed to parse embedding for document {row.id}")
+                        continue
+
                 documents.append({
                     "id": row.id,
                     "content": row.content,
                     "filename": row.filename,
                     "metadata": row.doc_metadata,
                     "created_at": row.created_at,
-                    "embedding": row.embedding
+                    "embedding": embedding
                 })
-                document_embeddings.append(row.embedding)
+                if embedding:
+                    document_embeddings.append(embedding)
             
             if not documents:
                 logger.info("没有找到任何文档")

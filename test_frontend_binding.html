@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>测试模型绑定</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    <h1>测试前端模型绑定</h1>
+    <div id="result"></div>
+    <script>
+        const API_BASE_URL = 'http://localhost:8800';
+
+        // 模拟 llmService.getAllModels
+        async function getAllModels() {
+            try {
+                const response = await axios.get(`${API_BASE_URL}/api/llm/models`);
+                return response.data;
+            } catch (error) {
+                console.error('获取模型失败:', error);
+                return [];
+            }
+        }
+
+        // 模拟 llmService.getChatModels
+        function getChatModels(models) {
+            return models;
+        }
+
+        // 模拟 llmService.getGroupedModelOptions
+        function getGroupedModelOptions(models) {
+            const providers = {};
+            models.forEach(model => {
+                const provider = model.provider || '其他';
+                if (!providers[provider]) {
+                    providers[provider] = [];
+                }
+                providers[provider].push({
+                    label: model.display_name || model.name,
+                    value: model.name,
+                    type: model.model_type || model.type
+                });
+            });
+            return providers;
+        }
+
+        // 测试流程
+        async function test() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<p>正在加载模型...</p>';
+
+            try {
+                // 1. 获取所有模型
+                const models = await getAllModels();
+                console.log('原始模型数据:', models);
+
+                // 2. 过滤聊天模型
+                const chatModels = getChatModels(models);
+                console.log('聊天模型:', chatModels);
+
+                // 3. 按提供商分组
+                const grouped = getGroupedModelOptions(chatModels);
+                console.log('分组的模型:', grouped);
+
+                // 4. 显示结果
+                let html = '<h2>✓ 成功加载模型！</h2>';
+                html += `<p>共 ${chatModels.length} 个模型</p>`;
+                html += '<h3>按提供商分组：</h3>';
+                html += '<ul>';
+
+                for (const [provider, models] of Object.entries(grouped)) {
+                    html += `<li><strong>${provider}:</strong> ${models.length} 个模型`;
+                    html += '<ul>';
+                    models.forEach(model => {
+                        html += `<li>${model.label} (${model.value})</li>`;
+                    });
+                    html += '</ul></li>';
+                }
+
+                html += '</ul>';
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">✗ 加载失败: ${error.message}</p>`;
+                console.error('测试失败:', error);
+            }
+        }
+
+        // 页面加载后运行测试
+        window.onload = test;
+    </script>
+</body>
+</html>

@@ -135,74 +135,93 @@ class AdvancedRetrievalService:
     
     async def retrieve_relevant_chunks(self, db: Session, query_text: str, top_k: int = None) -> List[Dict]:
         """
-        检索相关文档块，而不是整个文档
-        
+        检索相关文档块，直接使用预计算好的向量数据
+
         Args:
             db: 数据库会话
             query_text: 查询文本
             top_k: 返回的文档块数量
-            
+
         Returns:
             List[Dict]: 相关文档块列表
         """
         try:
-            top_k = top_k or self.top_k * 3  # 获取更多块，后续筛选
-            
+            top_k = top_k or self.top_k * 2  # 获取更多块以提供更好的上下文
+
             # 1. 为查询文本生成嵌入向量
             query_embedding = await embedding_service.create_embedding(query_text)
-            
-            # 2. 获取所有文档
+            logger.info(f"生成查询向量完成，维度: {len(query_embedding)}")
+
+            # 2. 直接从数据库获取所有已计算的文档块向量
             query = text("""
-                SELECT id, content, filename, doc_metadata, created_at, embedding
-                FROM documents
+                SELECT id, document_id, chunk_index, content, filename, chunk_metadata, created_at, embedding
+                FROM document_chunks
                 WHERE embedding IS NOT NULL
+                ORDER BY document_id, chunk_index
             """)
-            
+
             result = db.execute(query)
-            all_chunks = []
-            
+            chunks_with_embeddings = []
+
             for row in result:
-                # 将文档分块
-                chunks = self.chunk_document(row.content)
-                
-                for i, chunk in enumerate(chunks):
-                    # 为每个块生成嵌入向量
-                    chunk_embedding = await embedding_service.create_embedding(chunk)
-                    
-                    all_chunks.append({
-                        "id": f"{row.id}_{i}",
-                        "doc_id": row.id,
-                        "chunk_index": i,
-                        "content": chunk,
-                        "filename": row.filename,
-                        "metadata": row.doc_metadata,
-                        "created_at": row.created_at,
-                        "embedding": chunk_embedding
-                    })
-            
-            if not all_chunks:
-                logger.info("没有找到任何文档块")
+                chunks_with_embeddings.append({
+                    "id": row.id,
+                    "doc_id": row.document_id,
+                    "chunk_index": row.chunk_index,
+                    "content": row.content,
+                    "filename": row.filename,
+                    "metadata": row.chunk_metadata,
+                    "created_at": row.created_at,
+                    "embedding": row.embedding  # 直接使用预计算好的向量
+                })
+
+            if not chunks_with_embeddings:
+                logger.info("没有找到任何已嵌入的文档块")
                 return []
-            
-            # 3. 计算相似度并排序
-            similarities = []
-            for i, chunk in enumerate(all_chunks):
-                similarity = embedding_service.cosine_similarity(query_embedding, chunk["embedding"])
-                similarities.append((i, similarity))
-            
+
+            logger.info(f"从数据库加载了 {len(chunks_with_embeddings)} 个文档块")
+
+            # 3. 使用批量计算相似度（大幅提升性能）
+            logger.info("开始批量计算相似度...")
+
+            # 准备向量数据
+            valid_chunks = []
+            valid_embeddings = []
+
+            for i, chunk_data in enumerate(chunks_with_embeddings):
+                if chunk_data["embedding"] is not None:
+                    valid_chunks.append((i, chunk_data))
+                    valid_embeddings.append(chunk_data["embedding"])
+
+            if not valid_chunks:
+                logger.warning("没有有效的向量数据")
+                return []
+
+            # 批量计算所有相似度
+            similarities = embedding_service.batch_cosine_similarity(query_embedding, valid_embeddings)
+
+            # 创建(索引, 相似度)元组列表
+            similarity_pairs = []
+            for i, (chunk_idx, chunk_data) in enumerate(valid_chunks):
+                similarity_pairs.append((chunk_idx, similarities[i]))
+
+            if not similarity_pairs:
+                logger.warning("没有有效的相似度计算结果")
+                return []
+
             # 按相似度降序排序
-            similarities.sort(key=lambda x: x[1], reverse=True)
-            
+            similarity_pairs.sort(key=lambda x: x[1], reverse=True)
+
             # 4. 返回前top_k个最相似的文档块
             result_chunks = []
-            for i, (chunk_idx, similarity) in enumerate(similarities[:top_k]):
-                chunk = all_chunks[chunk_idx].copy()
+            for i, (chunk_idx, similarity) in enumerate(similarity_pairs[:top_k]):
+                chunk = chunks_with_embeddings[chunk_idx].copy()
                 chunk['similarity'] = similarity
                 result_chunks.append(chunk)
-            
-            logger.info(f"检索到 {len(result_chunks)} 个相关文档块")
+
+            logger.info(f"检索完成，返回 {len(result_chunks)} 个最相关的文档块")
             return result_chunks
-            
+
         except Exception as e:
             logger.error(f"检索文档块失败: {e}")
             return []

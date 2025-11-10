@@ -308,7 +308,7 @@ async def batch_retrieve_documents(self, queries: List[str]) -> List[List[Dict]]
 
 - **chunk_size**：根据文档类型调整（技术文档：1000，新闻：500）
 - **overlap_size**：确保上下文连续性（chunk_size的20%）
-- **max_context_length**：根据LLM限制调整（GPT-3.5：4000，GPT-4：8000）
+- **max_context_length**：根据LLM限制调整（GPT-3.5：4000，GPT-4：8800）
 
 ### 3. 监控性能
 

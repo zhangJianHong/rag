@@ -67,3 +67,19 @@ else:
     # 只在非测试环境下验证
     if not os.getenv("SKIP_CONFIG_VALIDATION"):
         validate_config()
+
+def get_settings():
+    """获取所有设置"""
+    return {
+        "openai_api_key": OPENAI_API_KEY,
+        "openai_api_url": OPENAI_API_URL,
+        "db_url": DB_URL,
+        "embedding_model": EMBEDDING_MODEL,
+        "chat_model": CHAT_MODEL,
+        "log_dir": LOG_DIR,
+        "log_level": LOG_LEVEL,
+        "use_chunk_retrieval": USE_CHUNK_RETRIEVAL,
+        "embedding_backend": EMBEDDING_BACKEND,
+        "huggingface_model": HUGGINGFACE_MODEL,
+        "embedding_device": EMBEDDING_DEVICE
+    }
