@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from app.database.connection import get_db
 from app.services.embedding import embedding_service
 from app.models.document import DocumentChunk
-from app.models.database import Document
+from app.models.database import Document, UserDocument, User
 from app.models.schemas import DocumentResponse
+from app.middleware.auth import get_current_active_user, require_document_upload, require_document_delete, require_document_read
 import PyPDF2
 import json
 from datetime import datetime
@@ -97,7 +98,11 @@ def split_text_into_chunks(text: str, chunk_size: int = MAX_CHUNK_SIZE, overlap:
     return chunks
 
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_document(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_document_upload)
+):
     """处理文档上传请求"""
     try:
         # 验证文件类型
@@ -146,7 +151,8 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
                 "size": len(file_content),
                 "type": file.filename.split('.')[-1],
                 "total_chunks": len(text_chunks),
-                "total_size": len(text_content)
+                "total_size": len(text_content),
+                "user_id": current_user.id
             }),
             filename=file.filename,
             created_at=str(datetime.now())
@@ -155,6 +161,14 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
         db.add(main_document)
         db.commit()
         db.refresh(main_document)
+
+        # 创建用户文档关联
+        user_document = UserDocument(
+            user_id=current_user.id,
+            document_id=main_document.id,
+            permission_level="write"
+        )
+        db.add(user_document)
 
         # 第二步：为每个块创建文档块记录
         document_chunk_ids = []
@@ -173,6 +187,7 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
                         "total_chunks": len(text_chunks),
                         "chunk_size": len(chunk)
                     }),
+                    chunk_index=i,
                     filename=f"{file.filename}_chunk_{i+1}",
                     created_at=str(datetime.now())
                 )
@@ -207,10 +222,27 @@ async def upload_document(file: UploadFile = File(...), db: Session = Depends(ge
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 @router.get("/documents", response_model=list[DocumentResponse])
-async def list_documents(db: Session = Depends(get_db)):
+async def list_documents(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_document_read)
+):
     """获取所有已上传的文档列表"""
     try:
-        documents = db.query(Document).all()
+        # 根据用户权限获取文档列表
+        from app.services.auth import auth_service
+        is_admin = auth_service.has_permission(db, current_user, "user_management")
+
+        if is_admin:
+            # 管理员可以看到所有文档
+            documents = db.query(Document).all()
+        else:
+            # 普通用户只能看到自己的文档
+            user_documents = db.query(UserDocument).filter(
+                UserDocument.user_id == current_user.id
+            ).all()
+            document_ids = [ud.document_id for ud in user_documents]
+            documents = db.query(Document).filter(Document.id.in_(document_ids)).all()
+
         return [
             DocumentResponse(
                 id=doc.id,
@@ -279,13 +311,35 @@ async def get_document(document_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail="Failed to get document")
 
 @router.delete("/documents/{document_id}")
-async def delete_document(document_id: int, db: Session = Depends(get_db)):
+async def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_document_delete)
+):
     """删除文档"""
     try:
+        # 检查用户是否有权限删除此文档
+        user_document = db.query(UserDocument).filter(
+            UserDocument.user_id == current_user.id,
+            UserDocument.document_id == document_id
+        ).first()
+
+        # 如果不是文档所有者，检查是否是管理员
+        if not user_document:
+            from app.services.auth import auth_service
+            is_admin = auth_service.has_permission(db, current_user, "user_management")
+            if not is_admin:
+                raise HTTPException(status_code=403, detail="Permission denied")
+
         document = db.query(Document).filter(Document.id == document_id).first()
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
+        # 删除用户文档关联
+        if user_document:
+            db.delete(user_document)
+
+        # 删除文档
         db.delete(document)
         db.commit()
         return {"message": "Document deleted successfully"}

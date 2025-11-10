@@ -1,30 +1,7 @@
-import axios from 'axios'
+import api from './api'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8800'
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 10000
-})
-
-apiClient.interceptors.request.use(
-  (config) => {
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
-
-apiClient.interceptors.response.use(
-  (response) => {
-    return response.data
-  },
-  (error) => {
-    console.error('API Error:', error)
-    return Promise.reject(error)
-  }
-)
+// 使用统一的api实例(已配置认证token)
+const apiClient = api
 
 export const llmService = {
   /**
@@ -33,7 +10,7 @@ export const llmService = {
   async getAllModels() {
     try {
       const response = await apiClient.get('/api/llm/models')
-      return response || []
+      return response.data || []
     } catch (error) {
       console.error('获取模型列表失败:', error)
       // 返回默认模型作为后备
@@ -76,7 +53,7 @@ export const llmService = {
   async getModelGroups() {
     try {
       const response = await apiClient.get('/api/llm/groups')
-      return response || []
+      return response.data || []
     } catch (error) {
       console.error('获取模型组失败:', error)
       return []

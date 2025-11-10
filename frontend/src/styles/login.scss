@@ -1,0 +1,433 @@
+// 登录页面样式
+.login-page {
+  // 继承科技风主题变量
+  background: var(--tech-bg-primary);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+// 登录表单容器
+.login-form {
+  .el-form-item {
+    margin-bottom: 24px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    .el-form-item__label {
+      color: var(--tech-text-secondary);
+      font-weight: 500;
+    }
+
+    .el-form-item__error {
+      color: var(--tech-neon-pink);
+      font-size: 12px;
+      padding-top: 4px;
+    }
+  }
+
+  // 输入框样式增强
+  :deep(.el-input__inner) {
+    background: var(--tech-glass-bg);
+    border: 1px solid var(--tech-border-color);
+    border-radius: 12px;
+    color: var(--tech-text-primary);
+    font-size: 15px;
+    transition: all var(--tech-transition-normal);
+    height: 48px;
+    line-height: 48px;
+
+    &:focus {
+      border-color: var(--tech-neon-blue);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    &::placeholder {
+      color: var(--tech-text-muted);
+    }
+  }
+
+  :deep(.el-input__prefix) {
+    left: 12px;
+    color: var(--tech-neon-blue);
+  }
+
+  // 密码输入框特殊样式
+  :deep(.el-input--suffix .el-input__inner) {
+    padding-right: 45px;
+  }
+
+  :deep(.el-input__suffix) {
+    right: 12px;
+    color: var(--tech-text-secondary);
+
+    .el-icon {
+      cursor: pointer;
+      transition: color var(--tech-transition-fast);
+
+      &:hover {
+        color: var(--tech-neon-blue);
+      }
+    }
+  }
+}
+
+// 登录按钮样式
+.login-button {
+  width: 100%;
+  height: 48px;
+  background: var(--tech-gradient-secondary);
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--tech-transition-normal);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0, 212, 255, 0.5);
+    background: linear-gradient(135deg, #0099ff 0%, #00d4ff 100%);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  // 按钮光波效果
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+  }
+
+  &:active::after {
+    width: 300px;
+    height: 300px;
+  }
+}
+
+// 忘记密码和注册链接
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.remember-checkbox {
+  color: var(--tech-text-secondary);
+  font-size: 14px;
+
+  :deep(.el-checkbox__label) {
+    color: var(--tech-text-secondary);
+  }
+
+  :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
+    background-color: var(--tech-neon-blue);
+    border-color: var(--tech-neon-blue);
+  }
+}
+
+.forgot-password {
+  color: var(--tech-neon-blue);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--tech-transition-fast);
+
+  &:hover {
+    color: var(--tech-neon-purple);
+    text-shadow: 0 0 10px var(--tech-neon-blue);
+  }
+}
+
+// 注册提示
+.register-hint {
+  color: var(--tech-text-secondary);
+  font-size: 14px;
+  margin: 0;
+  text-align: center;
+}
+
+.register-link {
+  color: var(--tech-neon-blue);
+  text-decoration: none;
+  font-weight: 600;
+  transition: all var(--tech-transition-fast);
+
+  &:hover {
+    color: var(--tech-neon-purple);
+    text-shadow: 0 0 10px var(--tech-neon-blue);
+  }
+}
+
+// 安全提示
+.security-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(251, 191, 36, 0.05));
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 12px;
+  margin-top: 24px;
+
+  .notice-icon {
+    color: var(--tech-neon-yellow);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  p {
+    color: var(--tech-neon-yellow);
+    font-size: 13px;
+    margin: 0;
+    text-align: center;
+    line-height: 1.5;
+  }
+}
+
+// 登录卡片悬浮动画
+.login-card {
+  animation: card-float 6s ease-in-out infinite;
+}
+
+@keyframes card-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+// Logo旋转动画
+.logo-ring {
+  animation: ring-rotate 10s linear infinite;
+}
+
+@keyframes ring-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// 背景网格动画
+.tech-grid-background {
+  animation: grid-move 20s linear infinite;
+}
+
+@keyframes grid-move {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(50px, 50px);
+  }
+}
+
+// 装饰元素动画
+.tech-circle {
+  animation: float 8s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-20px) rotate(180deg);
+  }
+}
+
+// 密码强度指示器
+.password-strength {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+
+  .strength-label {
+    font-size: 12px;
+    color: var(--tech-text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .strength-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+      animation: shimmer 2s infinite;
+    }
+  }
+
+  .strength-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+
+    &.weak {
+      background: linear-gradient(90deg, var(--tech-neon-pink), #ff6b6b);
+    }
+
+    &.medium {
+      background: linear-gradient(90deg, var(--tech-neon-yellow), #ffd43b);
+    }
+
+    &.strong {
+      background: linear-gradient(90deg, var(--tech-neon-green), #51cf66);
+    }
+  }
+
+  .strength-text {
+    font-size: 12px;
+    font-weight: 600;
+    text-align: right;
+
+    &.weak {
+      color: var(--tech-neon-pink);
+    }
+
+    &.medium {
+      color: var(--tech-neon-yellow);
+    }
+
+    &.strong {
+      color: var(--tech-neon-green);
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+// 服务条款复选框
+.terms-agreement {
+  margin-bottom: 30px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+
+  .terms-checkbox {
+    color: var(--tech-text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+
+    :deep(.el-checkbox__label) {
+      color: var(--tech-text-secondary);
+      line-height: 1.6;
+    }
+  }
+
+  .terms-link {
+    color: var(--tech-neon-purple);
+    text-decoration: none;
+    font-weight: 600;
+    transition: all var(--tech-transition-fast);
+
+    &:hover {
+      color: var(--tech-neon-pink);
+      text-shadow: 0 0 10px var(--tech-neon-purple);
+    }
+  }
+}
+
+// 响应式设计
+@media (max-width: 768px) {
+  .login-card {
+    width: 90%;
+    max-width: 400px;
+    padding: 24px;
+  }
+
+  .login-options {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .security-notice {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .password-strength {
+    margin-top: 8px;
+    padding: 8px;
+  }
+}
+
+// 暗黑主题适配
+@media (prefers-color-scheme: dark) {
+  .login-page {
+    // 暗色模式下的特殊样式
+    background: #0a0e1a;
+  }
+
+  .login-form {
+    :deep(.el-input__inner) {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  .security-notice {
+    background: rgba(251, 191, 36, 0.05);
+    border-color: rgba(251, 191, 36, 0.2);
+  }
+
+  .terms-agreement {
+    background: rgba(255, 255, 255, 0.02);
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+}

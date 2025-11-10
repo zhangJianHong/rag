@@ -6,9 +6,10 @@ from app.services.embedding import embedding_service
 from app.services.retrieval import retrieval_service
 from app.services.advanced_retrieval import advanced_retrieval_service
 from app.services.generation import generation_service
-from app.models.database import Query
+from app.models.database import Query, UserQuery, User
 from app.models.schemas import QueryRequest, QueryResponse
 from app.config.logging_config import get_app_logger
+from app.middleware.auth import require_query_ask
 import json
 from datetime import datetime
 import re
@@ -18,7 +19,11 @@ router = APIRouter()
 logger = get_app_logger()
 
 @router.post("/query", response_model=QueryResponse)
-async def query_documents(request: QueryRequest, db: Session = Depends(get_db)):
+async def query_documents(
+    request: QueryRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_query_ask)
+):
     """处理文档查询请求"""
     import os
     import time
@@ -57,13 +62,15 @@ async def query_documents(request: QueryRequest, db: Session = Depends(get_db)):
         response = await generation_service.generate_response(request.query, context)
         
         # 保存查询历史
-        query_record = Query(
+        # 创建用户查询记录
+        user_query_record = UserQuery(
+            user_id=current_user.id,
             query_text=request.query,
             response=response,
             sources=json.dumps(retrieved_docs),
             created_at=str(datetime.now())
         )
-        db.add(query_record)
+        db.add(user_query_record)
         db.commit()
         
         # 准备返回的源文档信息

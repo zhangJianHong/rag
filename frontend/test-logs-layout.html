@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日志统计布局测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #0a0e1a;
+            color: #f3f4f6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* 测试不同布局 */
+        .test-section {
+            margin-bottom: 40px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+        }
+
+        .layout-4cols {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .layout-4cols-compact {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .layout-4cols-tight {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 4px;
+        }
+
+        .stat-card {
+            background: rgba(17, 24, 39, 0.6);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .stat-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-title {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-trend {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .screen-label {
+            color: #a855f7;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 1280px) {
+            .layout-4cols {
+                gap: 16px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .layout-4cols {
+                gap: 12px;
+            }
+
+            .layout-4cols-compact {
+                gap: 8px;
+            }
+
+            .layout-4cols-tight {
+                gap: 2px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .layout-4cols {
+                gap: 8px;
+            }
+
+            .layout-4cols-compact {
+                gap: 4px;
+            }
+
+            .layout-4cols-tight {
+                gap: 1px;
+            }
+
+            .stat-card {
+                padding: 0.5rem;
+            }
+
+            .stat-icon {
+                font-size: 1.5rem;
+            }
+
+            .stat-value {
+                font-size: 1.25rem;
+            }
+
+            .stat-title {
+                font-size: 0.7rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .layout-4cols {
+                gap: 4px;
+            }
+
+            .layout-4cols-compact {
+                gap: 2px;
+            }
+
+            .layout-4cols-tight {
+                gap: 0px;
+            }
+
+            .stat-card {
+                padding: 0.25rem;
+                border-radius: 4px;
+            }
+
+            .stat-icon {
+                font-size: 1.1rem;
+                margin-bottom: 0.25rem;
+            }
+
+            .stat-value {
+                font-size: 1.1rem;
+            }
+
+            .stat-title {
+                font-size: 0.65rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>日志统计卡片布局测试</h1>
+
+        <div class="test-section">
+            <div class="screen-label">大屏幕布局 (gap: 24px)</div>
+            <div class="layout-4cols">
+                <div class="stat-card">
+                    <div class="stat-icon">📄</div>
+                    <div class="stat-value">12</div>
+                    <div class="stat-title">日志文件</div>
+                    <div class="stat-trend">📈 增长</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💾</div>
+                    <div class="stat-value">2.5 MB</div>
+                    <div class="stat-title">总大小</div>
+                    <div class="stat-trend">📈 增长</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-value">2024-01-01</div>
+                    <div class="stat-title">最早日志</div>
+                    <div class="stat-trend">📊 稳定</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🆕</div>
+                    <div class="stat-value">刚刚</div>
+                    <div class="stat-title">最新日志</div>
+                    <div class="stat-trend">📈 增长</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="screen-label">中等屏幕布局 (gap: 12px)</div>
+            <div class="layout-4cols-compact">
+                <div class="stat-card">
+                    <div class="stat-icon">📄</div>
+                    <div class="stat-value">12</div>
+                    <div class="stat-title">日志文件</div>
+                    <div class="stat-trend">📈 增长</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💾</div>
+                    <div class="stat-value">2.5 MB</div>
+                    <div class="stat-title">总大小</div>
+                    <div class="stat-trend">📈 增长</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-value">2024-01-01</div>
+                    <div class="stat-title">最早日志</div>
+                    <div class="stat-trend">📊 稳定</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🆕</div>
+                    <div class="stat-value">刚刚</div>
+                    <div class="stat-title">最新日志</div>
+                    <div class="stat-trend">📈 增长</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="screen-label">小屏幕布局 (gap: 4px)</div>
+            <div class="layout-4cols-tight">
+                <div class="stat-card">
+                    <div class="stat-icon">📄</div>
+                    <div class="stat-value">12</div>
+                    <div class="stat-title">日志文件</div>
+                    <div class="stat-trend">📈 增长</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">💾</div>
+                    <div class="stat-value">2.5 MB</div>
+                    <div class="stat-title">总大小</div>
+                    <div class="stat-trend">📈 增长</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-value">2024-01-01</div>
+                    <div class="stat-title">最早日志</div>
+                    <div class="stat-trend">📊 稳定</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🆕</div>
+                    <div class="stat-value">刚刚</div>
+                    <div class="stat-title">最新日志</div>
+                    <div class="stat-trend">📈 增长</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 40px; color: rgba(255,255,255,0.5);">
+        <p>调整浏览器窗口大小测试响应式布局</p>
+        <p>当前窗口宽度: <span id="width"></span>px</p>
+    </div>
+
+    <script>
+        function updateWidth() {
+            document.getElementById('width').textContent = window.innerWidth;
+        }
+
+        updateWidth();
+        window.addEventListener('resize', updateWidth);
+    </script>
+</body>
+</html>

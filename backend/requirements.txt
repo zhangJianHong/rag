@@ -10,6 +10,12 @@ psycopg2-binary==2.9.9
 python-multipart==0.0.6
 pydantic>=2.7.4
 
+# Authentication & Security
+PyJWT==2.8.0
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+email-validator==2.3.0
+
 # Configuration & Environment
 python-dotenv==1.0.0
 
@@ -32,6 +38,7 @@ transformers>=4.30.0
 
 # Monitoring & Observability
 traceloop-sdk>=0.47.0
+
 
 # Standard Library Extensions (included in Python but listed for clarity)
 # datetime - DateTime handling

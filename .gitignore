@@ -8,3 +8,4 @@ logs.txt
 __pycache__
 venv
 *.log
+frontend/dist

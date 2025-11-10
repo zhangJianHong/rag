@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import api from '@/services/api'
 
+// API 基础URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8800'
 
 export const useChatStore = defineStore('chat', {
@@ -25,7 +26,7 @@ export const useChatStore = defineStore('chat', {
   actions: {
     async loadSessions() {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/chat/sessions`)
+        const response = await api.get('/api/chat/sessions')
         this.sessions = response.data
 
         // 如果没有活动会话，选择第一个
@@ -40,7 +41,7 @@ export const useChatStore = defineStore('chat', {
 
     async createSession(title = '新对话') {
       try {
-        const response = await axios.post(`${API_BASE_URL}/api/chat/sessions`, {
+        const response = await api.post('/api/chat/sessions', {
           title
         })
         const session = response.data
@@ -63,8 +64,8 @@ export const useChatStore = defineStore('chat', {
 
     async loadMessages(sessionId) {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/chat/sessions/${sessionId}/messages`
+        const response = await api.get(
+          `/api/chat/sessions/${sessionId}/messages`
         )
         this.messages[sessionId] = response.data
       } catch (error) {
@@ -141,7 +142,7 @@ export const useChatStore = defineStore('chat', {
       } else {
         // 非流式响应
         try {
-          const response = await axios.post(`${API_BASE_URL}/api/chat/send`, {
+          const response = await api.post('/api/chat/send', {
             session_id: this.activeSessionId,
             message,
             use_rag: useRAG,
@@ -167,7 +168,7 @@ export const useChatStore = defineStore('chat', {
 
     async deleteSession(sessionId) {
       try {
-        await axios.delete(`${API_BASE_URL}/api/chat/sessions/${sessionId}`)
+        await api.delete(`/api/chat/sessions/${sessionId}`)
         const index = this.sessions.findIndex(s => s.session_id === sessionId)
         if (index !== -1) {
           this.sessions.splice(index, 1)

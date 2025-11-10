@@ -1,6 +1,8 @@
 """
 Chat对话相关的API路由
 """
+from math import log
+from venv import logger
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -106,7 +108,8 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
         # 如果启用RAG，获取相关文档
         sources = None
         if request.use_rag:
-            sources = await rag_service.search_relevant_docs(request.message)
+            logger.info(f"开始检索相关文档: {request.message[:50]}...")
+            sources = await rag_service.search_relevant_docs(request.message,similarity_threshold=0.2)
             if sources:
                 # 将相关文档添加到上下文
                 context = "\n".join([doc["content"] for doc in sources[:3]])

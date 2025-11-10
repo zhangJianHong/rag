@@ -12,14 +12,14 @@ RAG服务 - 处理检索增强生成
    - llm_service: 专负责文本生成
    - 职责分离，便于维护和扩展
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from venv import logger
-import numpy as np
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.services.embedding import embedding_service
 from app.services.llm_service import LLMService
+from app.services.vector_retrieval import vector_retrieval_service
 from app.models.document import Document, DocumentChunk
 from app.config.settings import get_settings
 
@@ -42,65 +42,59 @@ class RAGService:
         self,
         query: str,
         top_k: int = 5,
-        similarity_threshold: float = 0.7
+        similarity_threshold: float = 0.7,
+        document_ids: Optional[List[int]] = None,
+        filename_filter: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        搜索相关文档
+        搜索相关文档 - 使用通用向量检索服务
+
+        Args:
+            query: 查询文本
+            top_k: 返回的最大结果数
+            similarity_threshold: 相似度阈值
+            document_ids: 可选的文档ID过滤
+            filename_filter: 可选的文件名过滤
+
+        Returns:
+            List[Dict]: 相关文档块列表
         """
         try:
-            # 获取查询的向量嵌入（使用 embedding_service，支持缓存和多后端）
-            query_embedding = await embedding_service.create_embedding(query)
+            # 使用通用的向量检索服务
+            results = await vector_retrieval_service.search_chunks(
+                db=self.db,
+                query_text=query,
+                top_k=top_k,
+                similarity_threshold=similarity_threshold,
+                document_ids=document_ids,
+                filename_filter=filename_filter
+            )
 
-            # 从数据库查询所有文档块
-            chunks = self.db.query(DocumentChunk).all()
+            # 转换结果格式以保持向后兼容
+            formatted_results = []
+            for result in results:
+                formatted_results.append({
+                    "chunk_id": result["id"],
+                    "document_id": result["document_id"],
+                    "content": result["content"],
+                    "similarity": result["similarity"],
+                    "metadata": result["metadata"],
+                    "filename": result["filename"],
+                    "chunk_index": result["chunk_index"]
+                })
 
-            if not chunks:
-                return []
-
-            # 计算相似度
-            results = []
-            for chunk in chunks:
-                if chunk.embedding:
-                    # 直接使用 embedding（PostgreSQL ARRAY类型返回列表）
-                    similarity = self._cosine_similarity(query_embedding, chunk.embedding)
-                    if similarity >= similarity_threshold:
-                        results.append({
-                            "chunk_id": chunk.id,
-                            "document_id": chunk.document_id,
-                            "content": chunk.content,
-                            "similarity": float(similarity),
-                            "metadata": chunk.chunk_metadata
-                        })
-
-            # 按相似度排序并返回top_k个结果
-            results.sort(key=lambda x: x["similarity"], reverse=True)
-            return results[:top_k]
+            return formatted_results
 
         except Exception as e:
             logger.error(f"RAG search error: {e}")
             return []
 
-    def _cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
-        """
-        计算两个向量的余弦相似度
-        """
-        vec1 = np.array(vec1)
-        vec2 = np.array(vec2)
-
-        dot_product = np.dot(vec1, vec2)
-        norm1 = np.linalg.norm(vec1)
-        norm2 = np.linalg.norm(vec2)
-
-        if norm1 == 0 or norm2 == 0:
-            return 0.0
-
-        return dot_product / (norm1 * norm2)
-
+    
     async def generate_augmented_response(
         self,
         query: str,
         context_docs: List[Dict[str, Any]],
-        model: str = None,
+        model: Optional[str] = None,
         temperature: float = 0.7
     ) -> str:
         """
@@ -127,7 +121,7 @@ class RAGService:
         # 生成响应
         response = await self.llm_service.get_completion(
             messages=messages,
-            model=model,
+            model=model if model is not None else "gpt-3.5-turbo",
             temperature=temperature
         )
 
@@ -137,7 +131,7 @@ class RAGService:
         self,
         query: str,
         results: List[Dict[str, Any]],
-        model: str = None
+        model: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         使用LLM对搜索结果重新排序
@@ -164,7 +158,7 @@ class RAGService:
 
         response = await self.llm_service.get_completion(
             messages=messages,
-            model=model,
+            model=model if model is not None else "gpt-3.5-turbo",
             temperature=0.3,
             max_tokens=100
         )

@@ -106,7 +106,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 class ErrorLoggingMiddleware(BaseHTTPMiddleware):
     """错误日志中间件"""
-    
+
     async def dispatch(self, request: Request, call_next):
         """处理请求并记录错误"""
         try:
@@ -124,14 +124,31 @@ class ErrorLoggingMiddleware(BaseHTTPMiddleware):
                 "error": str(e),
                 "error_type": type(e).__name__
             }
-            
+
             error_logger.error(
                 f"HTTP错误 - {request.method} {request.url.path}",
                 extra={"error_info": error_info},
                 exc_info=True
             )
-            
+
             raise
+
+    def _get_client_ip(self, request: Request) -> str:
+        """获取客户端IP地址"""
+        # 检查代理头
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+
+        real_ip = request.headers.get("x-real-ip")
+        if real_ip:
+            return real_ip
+
+        # 直接连接
+        if hasattr(request.client, "host"):
+            return request.client.host
+
+        return "unknown"
 
 class PerformanceLoggingMiddleware(BaseHTTPMiddleware):
     """性能日志中间件"""

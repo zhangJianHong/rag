@@ -1,48 +1,15 @@
-import axios from 'axios'
+import api from './api'
 import { ElMessage } from 'element-plus'
 
-// API基础URL
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8800'
-
-// 创建axios实例
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// 请求拦截器
-apiClient.interceptors.request.use(
-  (config) => {
-    // 可以在这里添加认证token等
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
-
-// 响应拦截器
-apiClient.interceptors.response.use(
-  (response) => {
-    return response.data
-  },
-  (error) => {
-    console.error('API Error:', error)
-    const message = String(error.response?.data?.detail || error.message || '网络请求失败')
-    ElMessage.error(message)
-    return Promise.reject(error)
-  }
-)
+// 使用统一的api实例(已配置认证token)
+const apiClient = api
 
 export const documentService = {
   // 获取所有文档
   async getDocuments() {
     try {
       const response = await apiClient.get('/api/documents')
-      return response || []
+      return response.data || []
     } catch (error) {
       console.error('获取文档列表失败:', error)
       return []
@@ -53,7 +20,7 @@ export const documentService = {
   async getDocument(id) {
     try {
       const response = await apiClient.get(`/api/documents/${id}`)
-      return response
+      return response.data
     } catch (error) {
       console.error('获取文档详情失败:', error)
       return null
@@ -169,7 +136,7 @@ export const documentService = {
     try {
       const params = { query, ...filters }
       const response = await apiClient.get('/api/documents/search', { params })
-      return response || []
+      return response.data || []
     } catch (error) {
       console.error('搜索文档失败:', error)
       return []

@@ -187,11 +187,11 @@ class EmbeddingService:
     def cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
         """
         计算两个向量之间的余弦相似度
-        
+
         Args:
             vec1 (List[float]): 第一个向量
             vec2 (List[float]): 第二个向量
-            
+
         Returns:
             float: 余弦相似度值，范围在-1到1之间
                   1表示完全相似，0表示无关，-1表示完全相反
@@ -199,21 +199,63 @@ class EmbeddingService:
         try:
             vec1 = np.array(vec1)
             vec2 = np.array(vec2)
-            
+
             # 计算余弦相似度
             dot_product = np.dot(vec1, vec2)
             norm1 = np.linalg.norm(vec1)
             norm2 = np.linalg.norm(vec2)
-            
+
             if norm1 == 0 or norm2 == 0:
                 return 0.0
-            
+
             similarity = dot_product / (norm1 * norm2)
             return float(similarity)
-            
+
         except Exception as e:
             logger.error(f"计算余弦相似度失败: {e}")
             return 0.0
+
+    def batch_cosine_similarity(self, query_vec: List[float], candidate_vectors: List[List[float]]) -> List[float]:
+        """
+        批量计算查询向量与多个候选向量的余弦相似度
+
+        Args:
+            query_vec (List[float]): 查询向量
+            candidate_vectors (List[List[float]]): 候选向量列表
+
+        Returns:
+            List[float]: 相似度分数列表
+        """
+        try:
+            query_vec = np.array(query_vec)
+            candidates = np.array(candidate_vectors)
+
+            if len(candidates) == 0:
+                return []
+
+            # 计算查询向量的范数
+            query_norm = np.linalg.norm(query_vec)
+            if query_norm == 0:
+                return [0.0] * len(candidates)
+
+            # 批量计算所有候选向量的范数
+            candidate_norms = np.linalg.norm(candidates, axis=1)
+
+            # 避免除零错误
+            valid_mask = candidate_norms != 0
+            similarities = np.zeros(len(candidates))
+
+            if np.any(valid_mask):
+                # 批量计算点积
+                dot_products = np.dot(candidates[valid_mask], query_vec)
+                # 计算相似度
+                similarities[valid_mask] = dot_products / (candidate_norms[valid_mask] * query_norm)
+
+            return similarities.tolist()
+
+        except Exception as e:
+            logger.error(f"批量计算余弦相似度失败: {e}")
+            return [0.0] * len(candidate_vectors)
     
     def euclidean_distance(self, vec1: List[float], vec2: List[float]) -> float:
         """

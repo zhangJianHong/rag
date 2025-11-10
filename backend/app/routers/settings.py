@@ -177,3 +177,27 @@ async def update_single_setting(setting_type: str, key: str, data: Dict[str, Any
         db.rollback()
         logger.error(f"Error updating setting {setting_type}.{key}: {e}")
         raise HTTPException(status_code=500, detail="Failed to update setting")
+
+@router.get("/health")
+async def health_check(db: Session = Depends(get_db)):
+    """系统健康检查接口"""
+    try:
+        # 检查数据库连接
+        db.execute("SELECT 1")
+        db_status = "ok"
+    except Exception as e:
+        db_status = "error"
+        logger.error(f"Database health check failed: {e}")
+
+    # 获取系统信息
+    from datetime import datetime
+    import time
+
+    start_time = time.time()
+
+    return {
+        "status": "healthy" if db_status == "ok" else "unhealthy",
+        "timestamp": datetime.now().isoformat(),
+        "database": db_status,
+        "version": "1.0.0"
+    }

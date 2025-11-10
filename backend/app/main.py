@@ -2,14 +2,14 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from app.routers import upload, query, logs, settings, llm_models
+from app.routers import upload, query, logs, settings, llm_models, auth, chat, users, roles
 from app.config.logging_config import setup_logging, get_app_logger
 from app.middleware.logging_middleware import LoggingMiddleware, ErrorLoggingMiddleware, PerformanceLoggingMiddleware
 from app.config.settings import validate_config
 
 from traceloop.sdk import Traceloop
 
-Traceloop.init(api_key="tl_09341271a5434811bc237a03b15bb9a2")
+#Traceloop.init(api_key="tl_09341271a5434811bc237a03b15bb9a2")
 
 # 设置日志配置
 loggers = setup_logging()
@@ -73,6 +73,9 @@ app.add_middleware(
 )
 
 # 注册路由
+app.include_router(auth.router, prefix="/api", tags=["认证"])
+app.include_router(users.router, tags=["用户管理"])
+app.include_router(roles.router, tags=["角色管理"])
 app.include_router(upload.router, prefix="/api", tags=["文档管理"])
 app.include_router(query.router, prefix="/api", tags=["查询接口"])
 app.include_router(logs.router, prefix="/api", tags=["日志管理"])
