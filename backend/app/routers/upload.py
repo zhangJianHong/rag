@@ -274,7 +274,11 @@ async def get_document_stats(db: Session = Depends(get_db)):
         # 最近7天的文档
         from datetime import datetime, timedelta
         recent_date = datetime.now() - timedelta(days=7)
-        recent_docs = db.query(Document).filter(Document.created_at >= recent_date).count()
+        # 使用 cast 将字符串转换为日期时间进行比较
+        from sqlalchemy import cast, DateTime
+        recent_docs = db.query(Document).filter(
+            cast(Document.created_at, DateTime) >= recent_date
+        ).count()
 
         return {
             "total": total_docs,
