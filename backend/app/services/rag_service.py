@@ -36,7 +36,7 @@ class RAGService:
         self.db = SessionLocal()
 
         # LLM服务用于生成响应（RAG的生成阶段）
-        self.llm_service = LLMService()
+        self.llm_service = LLMService(db=self.db)
 
     async def search_relevant_docs(
         self,

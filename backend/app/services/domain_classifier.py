@@ -271,7 +271,7 @@ class LLMClassifier(DomainClassifier):
         if llm_service is None:
             # 懒加载 LLMService
             from app.services.llm_service import LLMService
-            self.llm_service = LLMService()
+            self.llm_service = LLMService(db=db)
         else:
             self.llm_service = llm_service
 
@@ -338,7 +338,16 @@ class LLMClassifier(DomainClassifier):
 
             # 解析JSON响应
             import json
-            result_data = json.loads(response['content'])
+
+            # 清理可能的markdown格式标记
+            content = response['content'].strip()
+            if content.startswith('```json'):
+                content = content[7:]  # 移除 ```json
+            if content.endswith('```'):
+                content = content[:-3]  # 移除 ```
+            content = content.strip()
+
+            result_data = json.loads(content)
 
             # 验证命名空间是否有效
             namespace = result_data.get('namespace', 'default')

@@ -4,7 +4,7 @@
 结合向量检索和BM25检索,使用RRF(Reciprocal Rank Fusion)融合算法
 """
 import asyncio
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any,Tuple
 from sqlalchemy.orm import Session
 from app.services.vector_retrieval import vector_retrieval_service
 from app.services.bm25_retrieval import get_bm25_service

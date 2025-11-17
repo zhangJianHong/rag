@@ -21,12 +21,12 @@ settings = get_settings()
 class LLMService:
     """LLM服务类 - 支持多模型动态初始化"""
 
-    def __init__(self, db: Session = None):
+    def __init__(self, db: Optional[Session] = None):
         """初始化LLM服务"""
         self.db = db
         # 缓存客户端，避免重复创建
         self._clients = {}
-        self.default_model = "gpt-3.5-turbo"
+        self.default_model = "GLM-4-Flash-250414" #"gpt-3.5-turbo"
 
     def _get_client_for_model(self, model_name: str) -> tuple:
         """
@@ -53,7 +53,7 @@ class LLMService:
                 if cache_key not in self._clients:
                     if provider.lower() == "openai":
                         client = AsyncOpenAI(
-                            api_key=api_key,
+                            api_key=str(api_key),
                             base_url=base_url or os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
                         )
                     elif provider.lower() == "anthropic":
@@ -61,7 +61,7 @@ class LLMService:
                             api_key=api_key,
                             base_url=base_url or os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com/v1")
                         )
-                    else:
+                    else:   
                         # 为其他提供商预留扩展
                         client = AsyncOpenAI(
                             api_key=api_key,
@@ -85,7 +85,7 @@ class LLMService:
     async def get_completion(
         self,
         messages: List[Dict[str, str]],
-        model: str = None,
+        model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 2000
     ) -> Dict[str, Any]:
@@ -137,7 +137,7 @@ class LLMService:
     async def stream_completion(
         self,
         messages: List[Dict[str, str]],
-        model: str = None,
+        model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,
         session_id: str = None,

@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from app.database import get_db
 from app.services.domain_classifier import get_classifier, DomainClassificationResult
 from app.services.llm_service import LLMService
-from app.dependencies import check_permission
+from app.middleware.auth import AuthMiddleware
 
 router = APIRouter()
 
@@ -100,7 +100,7 @@ class BatchClassifyResponse(BaseModel):
 async def classify_query(
     request: ClassifyQueryRequest,
     db: Session = Depends(get_db),
-    _: dict = Depends(check_permission("query_ask"))
+    _: dict = Depends(AuthMiddleware.check_permission("query_ask"))
 ):
     """
     对单个查询进行领域分类
@@ -122,7 +122,7 @@ async def classify_query(
             )
 
         # 获取分类器
-        llm_service = LLMService() if request.classifier_type in ['llm', 'hybrid'] else None
+        llm_service = LLMService(db=db) if request.classifier_type in ['llm', 'hybrid'] else None
         classifier = get_classifier(
             db=db,
             classifier_type=request.classifier_type,
@@ -157,7 +157,7 @@ async def classify_query(
 async def classify_batch(
     request: BatchClassifyRequest,
     db: Session = Depends(get_db),
-    _: dict = Depends(check_permission("query_ask"))
+    _: dict = Depends(AuthMiddleware.check_permission("query_ask"))
 ):
     """
     批量对多个查询进行领域分类
@@ -179,7 +179,7 @@ async def classify_batch(
             )
 
         # 获取分类器
-        llm_service = LLMService() if request.classifier_type in ['llm', 'hybrid'] else None
+        llm_service = LLMService(db=db ) if request.classifier_type in ['llm', 'hybrid'] else None
         classifier = get_classifier(
             db=db,
             classifier_type=request.classifier_type,
@@ -283,7 +283,7 @@ async def test_classification(
         dict: 分类结果
     """
     try:
-        llm_service = LLMService() if classifier_type in ['llm', 'hybrid'] else None
+        llm_service = LLMService(db=db) if classifier_type in ['llm', 'hybrid'] else None
         classifier = get_classifier(
             db=db,
             classifier_type=classifier_type,
