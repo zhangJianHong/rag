@@ -2,7 +2,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from app.routers import upload, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains
+from app.routers import upload, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains, classification
 from app.config.logging_config import setup_logging, get_app_logger
 from app.middleware.logging_middleware import LoggingMiddleware, ErrorLoggingMiddleware, PerformanceLoggingMiddleware
 from app.config.settings import validate_config
@@ -96,6 +96,9 @@ app.include_router(dashboard.router, prefix="/api", tags=["Dashboard"])
 
 # 注册知识领域管理路由
 app.include_router(knowledge_domains.router, prefix="/api", tags=["知识领域管理"])
+
+# 注册领域分类路由
+app.include_router(classification.router, prefix="/api", tags=["领域分类"])
 
 @app.get("/")
 async def root():
