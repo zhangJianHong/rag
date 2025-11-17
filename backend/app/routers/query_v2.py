@@ -8,7 +8,8 @@
 """
 import time
 import uuid
-from typing import List, Dict, Optional, Any
+import json
+from typing import List, Dict, Optional, Any, Tuple
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -24,6 +25,7 @@ from app.services.vector_retrieval import vector_retrieval_service
 from app.services.bm25_retrieval import get_bm25_service
 from app.services.hybrid_retrieval import get_hybrid_retrieval
 from app.services.cross_domain_retrieval import get_cross_domain_retrieval
+from app.services.query_performance import get_query_performance_logger
 from app.config.logging_config import get_app_logger
 
 router = APIRouter()
@@ -50,6 +52,19 @@ async def query_documents_v2(
     - hybrid: 混合检索(推荐,准确度最高)
     """
     start_time = time.time()
+    classification_start_time = None
+    retrieval_start_time = None
+
+    # 性能数据收集
+    performance_data = {
+        'namespace': request.namespace,
+        'top_k': request.top_k,
+        'alpha': request.alpha,
+        'similarity_threshold': request.similarity_threshold
+    }
+
+    # 获取性能日志记录器
+    perf_logger = get_query_performance_logger(db)
 
     try:
         logger.info(f"查询v2: {request.query}, mode={request.retrieval_mode}, method={request.retrieval_method}")
@@ -60,7 +75,9 @@ async def query_documents_v2(
         classification_result = None
 
         if not namespace or retrieval_mode == 'auto':
-            # 自动分类
+            # 自动分类 - 开始计时
+            classification_start_time = time.time()
+
             classifier = get_classifier(
                 db=db,
                 classifier_type='hybrid'  # 使用混合分类器
@@ -74,6 +91,11 @@ async def query_documents_v2(
                 }
             )
 
+            # 记录分类耗时
+            classification_latency_ms = (time.time() - classification_start_time) * 1000
+            performance_data['classification_latency_ms'] = classification_latency_ms
+            logger.info(f"分类耗时: {classification_latency_ms:.2f}ms")
+
             namespace = classification_result.namespace
 
             # 判断是否需要跨领域检索
@@ -84,6 +106,8 @@ async def query_documents_v2(
                 retrieval_mode = 'single'
 
         # === 步骤 2: 执行检索 ===
+        retrieval_start_time = time.time()
+
         if retrieval_mode == 'single':
             # 单领域检索
             results = await _single_domain_retrieval(
@@ -161,18 +185,50 @@ async def query_documents_v2(
 
         # === 步骤 3: 构建响应 ===
         latency_ms = (time.time() - start_time) * 1000
+        retrieval_latency_ms = (time.time() - retrieval_start_time) * 1000 if retrieval_start_time else 0
+        performance_data['total_latency_ms'] = latency_ms
+        performance_data['retrieval_latency_ms'] = retrieval_latency_ms
+
+        # 构建结果统计
+        domains_searched = [namespace]
+        if retrieval_mode == 'cross' and domain_groups:
+            domains_searched = [group.namespace for group in domain_groups]
+
+        result_data = {
+            'total_candidates': len(chunk_results),
+            'filtered_results': len(chunk_results),
+            'vector_results': len(chunk_results) if request.retrieval_method in ['vector', 'hybrid'] else 0,
+            'bm25_results': len(chunk_results) if request.retrieval_method in ['bm25', 'hybrid'] else 0,
+            'primary_domain': namespace,
+            'cross_domain_enabled': retrieval_mode == 'cross',
+            'domains_searched': domains_searched
+        }
+
+        # 记录性能日志
+        try:
+            perf_logger.log_query(
+                query=request.query,
+                retrieval_mode=retrieval_mode,
+                retrieval_method=request.retrieval_method or 'hybrid',
+                performance_data=performance_data,
+                result_data=result_data,
+                session_id=request.session_id,
+                error=None
+            )
+        except Exception as e:
+            logger.warning(f"记录性能日志失败: {e}")
 
         response = QueryResponseV2(
             query_id=str(uuid.uuid4()),
             query=request.query,
             domain_classification=classification_result.to_dict() if classification_result else None,
             retrieval_mode=retrieval_mode,
-            retrieval_method=request.retrieval_method,
+            retrieval_method=request.retrieval_method or 'hybrid',
             results=chunk_results,
             cross_domain_results=domain_groups if retrieval_mode == 'cross' else None,
             retrieval_stats=RetrievalStats(
                 total_candidates=len(chunk_results),
-                method=request.retrieval_method,
+                method=request.retrieval_method or 'hybrid',
                 latency_ms=latency_ms
             )
         )
@@ -184,6 +240,24 @@ async def query_documents_v2(
         logger.error(f"查询失败: {e}")
         import traceback
         logger.error(traceback.format_exc())
+
+        # 记录错误性能日志
+        try:
+            error_latency_ms = (time.time() - start_time) * 1000
+            error_performance_data = {**performance_data, 'total_latency_ms': error_latency_ms}
+
+            perf_logger.log_query(
+                query=request.query,
+                retrieval_mode=request.retrieval_mode or 'auto',
+                retrieval_method=request.retrieval_method or 'hybrid',
+                performance_data=error_performance_data,
+                result_data={},
+                session_id=request.session_id,
+                error=str(e)
+            )
+        except Exception as log_error:
+            logger.warning(f"记录错误性能日志失败: {log_error}")
+
         raise HTTPException(
             status_code=500,
             detail=f"查询失败: {str(e)}"
@@ -327,8 +401,31 @@ async def _chunk_to_result(
         document_id=chunk['document_id'],
         document_title=chunk.get('filename', '未知文档'),
         chunk_index=chunk.get('chunk_index'),
-        metadata=chunk.get('metadata', {})
+        metadata=_parse_metadata(chunk.get('metadata'))
     )
+
+
+def _parse_metadata(metadata_str: Optional[str]) -> Optional[Dict[str, Any]]:
+    """
+    解析元数据字符串为字典
+
+    Args:
+        metadata_str: JSON字符串格式的元数据
+
+    Returns:
+        解析后的字典，如果解析失败返回空字典
+    """
+    if not metadata_str:
+        return None
+
+    if isinstance(metadata_str, dict):
+        return metadata_str
+
+    try:
+        return json.loads(metadata_str)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning(f"无法解析元数据: {metadata_str[:100]}...")
+        return None
 
 
 @router.get("/query/methods", summary="获取支持的检索方法")
