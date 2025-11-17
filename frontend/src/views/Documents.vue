@@ -307,6 +307,21 @@
           <h4>已选择文件 ({{ selectedFiles.length }})</h4>
           <el-button size="small" @click="clearSelectedFiles">重新选择</el-button>
         </div>
+
+        <!-- 领域选择 -->
+        <div class="domain-selection">
+          <label class="domain-label">知识领域:</label>
+          <domain-selector
+            v-model="selectedDomain"
+            placeholder="选择知识领域 (可选)"
+            clearable
+            show-stats
+          />
+          <div class="domain-tip">
+            选择领域后,文档将自动归类到对应的知识领域,便于精准检索
+          </div>
+        </div>
+
         <div class="file-list">
           <div v-for="(file, index) in selectedFiles" :key="index" class="file-item">
             <div class="file-info">
@@ -368,6 +383,7 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRagStore } from '../store/ragStore'
 import documentService from '../services/documentService'
+import DomainSelector from '../components/domain/DomainSelector.vue'
 import {
   Search, Upload, Folder, Grid, List, View, Download, Delete, Close,
   Plus, Document, UploadFilled
@@ -393,6 +409,7 @@ const showFullContent = ref(false)
 const selectedFiles = ref([])
 const uploading = ref(false)
 const fileInput = ref(null)
+const selectedDomain = ref('default') // 添加领域选择
 
 // 真实数据
 const documents = ref([])
@@ -1482,5 +1499,29 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding-top: 12px;
+}
+
+/* 领域选择样式 */
+.domain-selection {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--tech-glass-bg);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 8px;
+}
+
+.domain-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tech-text-primary);
+}
+
+.domain-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--tech-text-secondary);
+  line-height: 1.5;
 }
 </style>
