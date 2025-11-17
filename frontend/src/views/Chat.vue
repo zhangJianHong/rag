@@ -48,6 +48,12 @@
               inactive-text="普通"
               size="small"
             />
+            <!-- 检索设置 -->
+            <RetrievalSettings
+              v-if="useRAG"
+              v-model="retrievalSettings"
+              @apply="onRetrievalSettingsApply"
+            />
           </div>
         </div>
       </div>
@@ -59,6 +65,11 @@
         ref="chatWindow"
         class="chat-messages"
       />
+
+      <!-- 查询结果展示(RAG模式) -->
+      <div v-if="useRAG && currentQueryResult" class="query-result-section">
+        <QueryResult :result="currentQueryResult" />
+      </div>
 
       <!-- 输入区域 -->
       <div class="chat-input-wrapper">
@@ -80,8 +91,11 @@ import { ElMessage } from 'element-plus'
 import ChatSidebar from '../components/chat/ChatSidebar.vue'
 import ChatWindow from '../components/chat/ChatWindow.vue'
 import InputBar from '../components/chat/InputBar.vue'
+import RetrievalSettings from '../components/query/RetrievalSettings.vue'
+import QueryResult from '../components/query/QueryResult.vue'
 import { useChatStore } from '../store/chatStore'
 import llmService from '../services/llmService'
+import { queryDocumentsV2, formatQueryResults } from '../services/queryService'
 
 const chatStore = useChatStore()
 
@@ -95,6 +109,17 @@ const isGenerating = ref(false)
 const inputMessage = ref('')
 const selectedModel = ref('gpt-3.5-turbo')
 const useRAG = ref(true)
+
+// 检索相关状态
+const retrievalSettings = ref({
+  method: 'hybrid',
+  mode: 'auto',
+  namespace: null,
+  topK: 10,
+  alpha: 0.5,
+  similarityThreshold: 0.0
+})
+const currentQueryResult = ref(null)
 
 // 模型相关状态
 const availableModels = ref([])
@@ -133,17 +158,70 @@ const sendMessage = async () => {
   isGenerating.value = true
 
   try {
-    await chatStore.sendMessage({
-      message,
-      model: selectedModel.value,
-      useRAG: useRAG.value,
-      stream: true
-    })
+    // 如果开启RAG,先执行查询v2
+    if (useRAG.value) {
+      console.log('执行查询v2...', retrievalSettings.value)
+
+      const queryResponse = await queryDocumentsV2({
+        query: message,
+        retrievalMode: retrievalSettings.value.mode,
+        retrievalMethod: retrievalSettings.value.method,
+        namespace: retrievalSettings.value.namespace,
+        topK: retrievalSettings.value.topK,
+        alpha: retrievalSettings.value.alpha,
+        similarityThreshold: retrievalSettings.value.similarityThreshold,
+        sessionId: activeSessionId.value
+      })
+
+      if (queryResponse.success) {
+        // 格式化并显示查询结果
+        currentQueryResult.value = formatQueryResults(queryResponse.data)
+        console.log('查询结果:', currentQueryResult.value)
+
+        // 提取相关上下文(取前5个结果)
+        const context = currentQueryResult.value.results
+          .slice(0, 5)
+          .map(r => `[${r.domainDisplayName}] ${r.content}`)
+          .join('\n\n')
+
+        console.log('提取上下文:', context.substring(0, 200) + '...')
+
+        // 发送带上下文的消息
+        await chatStore.sendMessage({
+          message,
+          model: selectedModel.value,
+          useRAG: true,
+          stream: true,
+          context  // 传递上下文
+        })
+      } else {
+        console.error('查询失败:', queryResponse.error)
+        ElMessage.warning(`检索失败: ${queryResponse.error}, 降级为普通对话`)
+
+        // 降级为普通聊天
+        await chatStore.sendMessage({
+          message,
+          model: selectedModel.value,
+          useRAG: false,
+          stream: true
+        })
+      }
+    } else {
+      // 普通聊天(不使用RAG)
+      currentQueryResult.value = null
+      await chatStore.sendMessage({
+        message,
+        model: selectedModel.value,
+        useRAG: false,
+        stream: true
+      })
+    }
 
     // 滚动到底部
     await nextTick()
     chatWindow.value?.scrollToBottom()
   } catch (error) {
+    console.error('发送消息失败:', error)
     ElMessage.error('发送消息失败：' + error.message)
   } finally {
     isLoading.value = false
@@ -154,6 +232,12 @@ const sendMessage = async () => {
 const stopGeneration = () => {
   chatStore.stopGeneration()
   isGenerating.value = false
+}
+
+const onRetrievalSettingsApply = (newSettings) => {
+  retrievalSettings.value = { ...newSettings }
+  console.log('应用检索设置:', retrievalSettings.value)
+  ElMessage.success('检索设置已更新')
 }
 
 // 加载可用模型
@@ -288,6 +372,34 @@ onMounted(async () => {
 .chat-messages {
   flex: 1;
   overflow: auto;
+}
+
+.query-result-section {
+  padding: 16px 24px;
+  background: transparent;
+  max-height: 500px;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--tech-glass-border);
+
+  // 自定义滚动条
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--tech-neon-blue);
+    border-radius: 3px;
+    opacity: 0.6;
+
+    &:hover {
+      background: var(--tech-neon-purple);
+    }
+  }
 }
 
 .chat-input-wrapper {
