@@ -2,7 +2,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from app.routers import upload, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains, classification, query_v2
+from app.routers import upload, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains, classification, query_v2, performance
 from app.config.logging_config import setup_logging, get_app_logger
 from app.middleware.logging_middleware import LoggingMiddleware, ErrorLoggingMiddleware, PerformanceLoggingMiddleware
 from app.config.settings import validate_config
@@ -102,6 +102,9 @@ app.include_router(classification.router, prefix="/api", tags=["领域分类"])
 
 # 注册查询v2路由
 app.include_router(query_v2.router, prefix="/api", tags=["查询v2"])
+
+# 注册性能监控路由
+app.include_router(performance.router, prefix="/api", tags=["性能监控"])
 
 @app.get("/")
 async def root():
