@@ -81,6 +81,16 @@ const routes = [
 
   // 管理员路由
   {
+    path: '/knowledge-domains',
+    name: 'KnowledgeDomains',
+    component: () => import('./views/KnowledgeDomains.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '知识领域管理',
+      permissions: ['system_settings']
+    }
+  },
+  {
     path: '/logs',
     name: 'Logs',
     component: () => import('./views/Logs.vue'),

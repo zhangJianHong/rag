@@ -55,13 +55,19 @@
 
 ## 📂 创建的文件
 
-### 后端文件
+### 后端文件 - Week 1
 1. `backend/app/models/knowledge_domain.py` - 领域模型定义
 2. `backend/app/schemas/knowledge_domain.py` - Pydantic schemas
 3. `backend/app/migrations/add_multi_domain_support.py` - Python迁移脚本(完整版)
-4. `backend/migrations_phase1.sql` - SQL迁移脚本(推荐使用)
+4. `backend/migrations_phase1.sql` - SQL迁移脚本(推荐使用) ✅ 已执行
 5. `backend/simple_migration.py` - 简化迁移脚本
 6. `backend/test_migration.py` - 分步执行迁移脚本(调试用)
+7. `backend/MIGRATION_GUIDE.md` - 数据库迁移执行指南
+
+### 后端文件 - Week 2
+8. `backend/app/services/domain_service.py` - 领域服务层
+9. `backend/app/routers/knowledge_domains.py` - API路由
+10. `backend/test_domain_api.py` - API测试脚本
 
 ### 文档文件
 1. `MULTI_DOMAIN_KNOWLEDGE_BASE_ARCHITECTURE.md` - 完整架构方案
@@ -91,24 +97,29 @@
 
 ---
 
-## 📋 待完成的任务 (Week 2-3)
+## 📋 Week 2 任务进度
 
-### Service 层开发
-- [ ] 创建 `DomainService` 类
-  - get_all_domains()
-  - get_domain_by_namespace()
-  - create_domain()
-  - update_domain()
-  - delete_domain()
-  - get_domain_stats()
+### ✅ Service 层开发 (已完成)
+- [x] 创建 `DomainService` 类
+  - [x] get_all_domains() - 获取所有领域
+  - [x] get_domain_by_namespace() - 根据命名空间获取领域
+  - [x] create_domain() - 创建新领域
+  - [x] update_domain() - 更新领域
+  - [x] delete_domain() - 删除领域
+  - [x] get_domain_stats() - 获取领域统计信息
+  - [x] get_all_domains_with_stats() - 获取包含统计的领域列表
+  - [x] search_domains_by_keyword() - 关键词搜索
 
-### API 端点开发
-- [ ] GET /api/knowledge-domains - 获取领域列表
-- [ ] GET /api/knowledge-domains/{namespace} - 获取单个领域
-- [ ] POST /api/knowledge-domains - 创建领域
-- [ ] PUT /api/knowledge-domains/{namespace} - 更新领域
-- [ ] DELETE /api/knowledge-domains/{namespace} - 删除领域
-- [ ] GET /api/knowledge-domains/{namespace}/stats - 获取领域统计
+### ✅ API 端点开发 (已完成)
+- [x] GET /api/knowledge-domains - 获取领域列表
+- [x] GET /api/knowledge-domains/{namespace} - 获取单个领域
+- [x] POST /api/knowledge-domains - 创建领域
+- [x] PUT /api/knowledge-domains/{namespace} - 更新领域
+- [x] DELETE /api/knowledge-domains/{namespace} - 删除领域
+- [x] GET /api/knowledge-domains/{namespace}/stats - 获取领域统计
+- [x] GET /api/knowledge-domains/search/{keyword} - 搜索领域
+
+### 📋 待完成任务 (Week 2-3)
 
 ### 前端开发
 - [ ] 创建 DomainSelector 组件
@@ -139,35 +150,45 @@
 ## 📊 完成度评估
 
 ### Week 1 任务 (数据库架构改造)
-- 完成度: **85%**
+- 完成度: **100%** ✅
 - 已完成:
   - ✅ 模型定义(100%)
   - ✅ Schema创建(100%)
   - ✅ 迁移脚本编写(100%)
-  - ⏳ 迁移执行(待验证)
+  - ✅ 迁移执行(100%)
+
+### Week 2 任务 (Service层和API)
+- 完成度: **100%** ✅
+- 已完成:
+  - ✅ DomainService服务层(100%)
+  - ✅ API路由实现(100%)
+  - ✅ API注册到主应用(100%)
 
 ### 整体第一阶段
-- 预计完成度: **35%** (Week 1 of 2-3 weeks)
-- 按计划进行: ✅
+- 预计完成度: **70%** (Week 1-2 完成, Week 3 待前端开发)
+- 按计划进行: ✅ 超前完成
 
 ---
 
 ## 🔜 下一步行动
 
-### 立即行动
-1. ✅ 验证数据库迁移是否成功
-2. ✅ 如失败,手动执行SQL或调试Python脚本
-3. ✅ 测试新模型是否可以正常使用
+### ✅ 已完成
+1. ✅ Week 1: 数据库架构改造
+2. ✅ Week 2: Service层和API开发
 
-### Week 2 计划
-1. 开发 DomainService 服务层
-2. 创建领域管理 API 端点
-3. 集成到现有系统(修改上传API支持namespace)
-
-### Week 3 计划
-1. 前端领域管理页面开发
-2. 前端组件开发(DomainSelector, DomainBadge)
-3. 集成测试与文档编写
+### Week 3 计划 (前端开发)
+1. 创建前端组件
+   - DomainSelector 组件 (领域选择器)
+   - DomainBadge 组件 (领域标签显示)
+2. 创建领域管理页面
+   - KnowledgeDomains.vue (管理页面)
+   - 领域列表展示
+   - 领域CRUD操作界面
+3. 修改现有页面
+   - 上传页面: 添加领域选择功能
+   - 文档列表: 显示领域标签
+4. 创建前端API服务
+   - knowledgeDomains.js (API调用封装)
 
 ---
 
@@ -188,5 +209,5 @@
 
 ---
 
-**最后更新**: 2025-11-17 16:30
-**状态**: 🟡 Week 1 代码完成,待执行数据库迁移
+**最后更新**: 2025-11-17 18:30
+**状态**: 🟢 Week 1-2 完成 (数据库+Service+API) - 进度 70%
