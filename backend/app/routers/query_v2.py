@@ -23,6 +23,7 @@ from app.services.domain_classifier import get_classifier
 from app.services.vector_retrieval import vector_retrieval_service
 from app.services.bm25_retrieval import get_bm25_service
 from app.services.hybrid_retrieval import get_hybrid_retrieval
+from app.services.cross_domain_retrieval import get_cross_domain_retrieval
 from app.config.logging_config import get_app_logger
 
 router = APIRouter()
@@ -102,22 +103,55 @@ async def query_documents_v2(
             ]
 
         elif retrieval_mode == 'cross':
-            # 跨领域检索(暂时使用单领域实现,后续Week 2实现)
-            logger.warning("跨领域检索功能将在Week 2实现,暂时降级到单领域")
-            results = await _single_domain_retrieval(
+            # 跨领域检索
+            logger.info(f"执行跨领域检索: namespaces={request.namespaces}")
+
+            results_with_namespace = await _cross_domain_retrieval(
                 query=request.query,
-                namespace=namespace,
+                classification_result=classification_result,
+                namespaces=request.namespaces,
                 top_k=request.top_k,
-                method=request.retrieval_method,
                 alpha=request.alpha,
-                similarity_threshold=request.similarity_threshold,
                 db=db
             )
 
-            chunk_results = [
-                await _chunk_to_result(chunk, namespace, db)
-                for chunk in results
-            ]
+            # 转换为ChunkResult并获取分组结果
+            chunk_results = []
+            for chunk, ns, score in results_with_namespace:
+                result = await _chunk_to_result(chunk, ns, db)
+                # 使用跨领域得分
+                result.score = score
+                chunk_results.append(result)
+
+            # 按领域分组用于前端展示
+            cross_domain_service = get_cross_domain_retrieval(db)
+            grouped = cross_domain_service.group_results_by_domain(results_with_namespace)
+
+            # 构建分组响应
+            from app.schemas.query import DomainGroup
+            domain_groups = []
+
+            for ns, chunks in grouped.items():
+                domain = db.query(KnowledgeDomain).filter(
+                    KnowledgeDomain.namespace == ns
+                ).first()
+
+                # 为该领域的结果创建ChunkResult列表
+                group_results = []
+                for chunk in chunks[:3]:  # 每个领域显示前3个
+                    result = await _chunk_to_result(chunk, ns, db)
+                    result.score = chunk.get('cross_domain_score', 0.0)
+                    group_results.append(result)
+
+                domain_groups.append(DomainGroup(
+                    namespace=ns,
+                    display_name=domain.display_name if domain else ns,
+                    count=len(chunks),
+                    results=group_results
+                ))
+
+            # 按结果数量排序
+            domain_groups.sort(key=lambda x: x.count, reverse=True)
 
         else:
             raise HTTPException(
@@ -135,7 +169,7 @@ async def query_documents_v2(
             retrieval_mode=retrieval_mode,
             retrieval_method=request.retrieval_method,
             results=chunk_results,
-            cross_domain_results=None,  # Week 2实现
+            cross_domain_results=domain_groups if retrieval_mode == 'cross' else None,
             retrieval_stats=RetrievalStats(
                 total_candidates=len(chunk_results),
                 method=request.retrieval_method,
@@ -154,6 +188,52 @@ async def query_documents_v2(
             status_code=500,
             detail=f"查询失败: {str(e)}"
         )
+
+
+async def _cross_domain_retrieval(
+    query: str,
+    classification_result: Optional[Any],
+    namespaces: Optional[List[str]],
+    top_k: int,
+    alpha: float,
+    db: Session
+) -> List[Tuple[Dict[str, Any], str, float]]:
+    """
+    跨领域检索
+
+    Args:
+        query: 查询文本
+        classification_result: 分类结果(用于权重计算)
+        namespaces: 指定领域列表
+        top_k: 返回结果数
+        alpha: 混合检索权重
+        db: 数据库会话
+
+    Returns:
+        (chunk, namespace, score) 元组列表
+    """
+    cross_domain_service = get_cross_domain_retrieval(db)
+
+    if classification_result:
+        # 基于分类结果进行智能跨领域检索
+        results, weights = await cross_domain_service.search_with_classification(
+            query=query,
+            classification_result=classification_result,
+            top_k=top_k,
+            alpha=alpha,
+            include_all_domains=(namespaces is None)
+        )
+        logger.info(f"使用分类权重: {weights}")
+    else:
+        # 普通跨领域检索(无权重)
+        results = await cross_domain_service.search_across_domains(
+            query=query,
+            namespaces=namespaces,
+            top_k=top_k,
+            alpha=alpha
+        )
+
+    return results
 
 
 async def _single_domain_retrieval(
