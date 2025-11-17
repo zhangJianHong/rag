@@ -48,7 +48,8 @@
 ### 5. 数据库迁移脚本
 - [x] 创建 SQL 迁移文件 `migrations_phase1.sql`
 - [x] 创建 Python 迁移脚本 `simple_migration.py`
-- [⏳] 执行中: 数据库迁移(可能由于数据库连接问题而挂起)
+- [x] 创建分步迁移脚本 `test_migration.py`
+- [ ] 待执行: 数据库迁移(需手动执行或通过Docker)
 
 ---
 
@@ -57,9 +58,10 @@
 ### 后端文件
 1. `backend/app/models/knowledge_domain.py` - 领域模型定义
 2. `backend/app/schemas/knowledge_domain.py` - Pydantic schemas
-3. `backend/app/migrations/add_multi_domain_support.py` - Python迁移脚本
-4. `backend/migrations_phase1.sql` - SQL迁移脚本
+3. `backend/app/migrations/add_multi_domain_support.py` - Python迁移脚本(完整版)
+4. `backend/migrations_phase1.sql` - SQL迁移脚本(推荐使用)
 5. `backend/simple_migration.py` - 简化迁移脚本
+6. `backend/test_migration.py` - 分步执行迁移脚本(调试用)
 
 ### 文档文件
 1. `MULTI_DOMAIN_KNOWLEDGE_BASE_ARCHITECTURE.md` - 完整架构方案
@@ -76,12 +78,16 @@
 ## 🚧 进行中的任务
 
 ### 数据库迁移
-- 状态: 执行中
-- 问题: 脚本可能由于数据库连接或权限问题而挂起
+- 状态: 待手动执行
+- 问题: Python脚本连接数据库时挂起,可能是网络/权限问题
+- 解决方案: 已创建多个迁移脚本选项
+  - `backend/migrations_phase1.sql` - 完整SQL脚本
+  - `backend/simple_migration.py` - Python简化版
+  - `backend/test_migration.py` - 分步执行版
 - 下一步:
-  1. 检查数据库连接状态
-  2. 手动验证迁移是否成功
-  3. 如失败,尝试分步执行SQL
+  1. **手动执行SQL**: 可通过数据库客户端工具直接执行 `migrations_phase1.sql`
+  2. **或使用Docker**: `docker exec -i <postgres_container> psql -U postgres ragdb < migrations_phase1.sql`
+  3. 验证表结构: 检查 `knowledge_domains` 等表是否创建成功
 
 ---
 
@@ -182,5 +188,5 @@
 
 ---
 
-**最后更新**: 2025-11-17 16:05
-**状态**: 🟡 进行中 (数据库迁移待验证)
+**最后更新**: 2025-11-17 16:30
+**状态**: 🟡 Week 1 代码完成,待执行数据库迁移

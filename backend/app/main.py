@@ -2,7 +2,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from app.routers import upload, query, logs, settings, llm_models, auth, chat, users, roles, dashboard
+from app.routers import upload, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains
 from app.config.logging_config import setup_logging, get_app_logger
 from app.middleware.logging_middleware import LoggingMiddleware, ErrorLoggingMiddleware, PerformanceLoggingMiddleware
 from app.config.settings import validate_config
@@ -37,6 +37,7 @@ async def startup_event():
         from app.models.llm_models import Base as LLMBase
         from app.models.database import Base as DocumentBase
         from app.models.document import Base as DocumentModelBase
+        from app.models.knowledge_domain import Base as KnowledgeDomainBase
 
         engine = get_engine()
 
@@ -52,6 +53,10 @@ async def startup_event():
         # 创建LLM模型表
         LLMBase.metadata.create_all(bind=engine)
         logger.info("LLM models tables initialized successfully")
+
+        # 创建知识领域表
+        KnowledgeDomainBase.metadata.create_all(bind=engine)
+        logger.info("Knowledge domain tables initialized successfully")
 
     except Exception as e:
         logger.error(f"Failed to initialize database tables: {e}")
@@ -88,6 +93,9 @@ app.include_router(chat.router, prefix="/api", tags=["聊天接口"])
 
 # 注册Dashboard路由
 app.include_router(dashboard.router, prefix="/api", tags=["Dashboard"])
+
+# 注册知识领域管理路由
+app.include_router(knowledge_domains.router, prefix="/api", tags=["知识领域管理"])
 
 @app.get("/")
 async def root():
