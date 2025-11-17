@@ -327,15 +327,18 @@ class LLMClassifier(DomainClassifier):
 
         try:
             # 调用LLM
-            response = await self.llm_service.generate_response(
-                prompt=prompt,
+            response = await self.llm_service.get_completion(
+                messages=[
+                    {"role": "system", "content": "你是一个专业的文档分类助手，负责将用户查询分类到合适的知识领域。"},
+                    {"role": "user", "content": prompt}
+                ],
                 temperature=0.3,  # 较低温度以获得更确定的分类
                 max_tokens=300
             )
 
             # 解析JSON响应
             import json
-            result_data = json.loads(response)
+            result_data = json.loads(response['content'])
 
             # 验证命名空间是否有效
             namespace = result_data.get('namespace', 'default')
