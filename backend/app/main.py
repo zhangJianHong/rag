@@ -2,7 +2,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from app.routers import upload, query, logs, settings, llm_models, auth, chat, users, roles
+from app.routers import upload, query, logs, settings, llm_models, auth, chat, users, roles, dashboard
 from app.config.logging_config import setup_logging, get_app_logger
 from app.middleware.logging_middleware import LoggingMiddleware, ErrorLoggingMiddleware, PerformanceLoggingMiddleware
 from app.config.settings import validate_config
@@ -85,6 +85,9 @@ app.include_router(llm_models.router, prefix="/api", tags=["LLM模型管理"])
 # 导入并注册Chat路由
 from app.routers import chat
 app.include_router(chat.router, prefix="/api", tags=["聊天接口"])
+
+# 注册Dashboard路由
+app.include_router(dashboard.router, prefix="/api", tags=["Dashboard"])
 
 @app.get("/")
 async def root():

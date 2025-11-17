@@ -554,7 +554,7 @@ const getBaseUrlHint = () => {
 
 // 计算属性：是否显示自定义API地址
 const showCustomBaseUrl = computed(() => {
-  return ['anthropic', 'azure', 'custom'].includes(modelForm.value.provider)
+  return ['openai','anthropic', 'azure', 'custom'].includes(modelForm.value.provider)
 })
 
 // ========== 加载数据 ==========

@@ -125,6 +125,11 @@ export const useChatStore = defineStore('chat', {
             this.isGenerating = false
             eventSource.close()
             this.eventSource = null
+
+            // 【刷新会话列表】消息完成后刷新会话列表以更新标题
+            setTimeout(() => {
+              this.loadSessions()
+            }, 800) // 延迟800ms确保后端标题已生成
           } else if (data.type === 'error') {
             console.error('Stream error:', data.error)
             this.isGenerating = false
@@ -151,6 +156,11 @@ export const useChatStore = defineStore('chat', {
           })
 
           this.messages[this.activeSessionId][messageIndex].content = response.data.message
+
+          // 【刷新会话列表】非流式响应完成后也刷新会话列表
+          setTimeout(() => {
+            this.loadSessions()
+          }, 500)
         } catch (error) {
           console.error('Failed to send message:', error)
           this.messages[this.activeSessionId][messageIndex].content = '发送失败，请重试'

@@ -95,6 +95,35 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
         db.add(user_message)
         db.commit()
 
+        # 【自动生成标题】检查是否为第一条用户消息
+        user_message_count = db.query(ChatMessage).filter(
+            ChatMessage.session_id == session_id,
+            ChatMessage.role == "user"
+        ).count()
+
+        if user_message_count == 1 and session.title in ["新对话", "新会话", request.message[:50]]:
+            # 这是第一条消息,自动生成标题
+            try:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"为会话 {session_id} 生成标题...")
+
+                new_title = await llm_svc.generate_session_title(
+                    first_message=request.message,
+                    model=request.model
+                )
+
+                session.title = new_title
+                session.updated_at = datetime.utcnow()
+                db.commit()
+
+                logger.info(f"会话标题已更新: {new_title}")
+            except Exception as title_error:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"生成标题失败: {title_error}")
+                # 标题生成失败不影响主流程,使用默认标题
+
         # 获取历史消息作为上下文
         history = db.query(ChatMessage).filter(
             ChatMessage.session_id == session_id
