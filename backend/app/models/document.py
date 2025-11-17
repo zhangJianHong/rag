@@ -3,6 +3,7 @@
 存储文档内容和嵌入向量信息
 """
 from sqlalchemy import Column, Integer, String, Text, ARRAY, Float
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
@@ -22,6 +23,11 @@ class Document(Base):
     filename = Column(String, comment="文件名")
     created_at = Column(String, default=lambda: str(datetime.now()), comment="创建时间")
 
+    # 多领域支持字段
+    namespace = Column(String(100), nullable=False, default='default', index=True, comment="领域命名空间")
+    domain_tags = Column(JSONB, default=dict, nullable=False, comment="领域标签(JSON)")
+    domain_confidence = Column(Float, default=0.0, nullable=False, comment="领域分类置信度")
+
 class DocumentChunk(Base):
     """
     文档块模型类
@@ -37,3 +43,7 @@ class DocumentChunk(Base):
     chunk_metadata = Column(String, comment="元数据信息")  # 重命名避免与SQLAlchemy保留字冲突
     filename = Column(String, comment="文件名")  # 添加filename字段
     created_at = Column(String, default=lambda: str(datetime.now()), comment="创建时间")
+
+    # 多领域支持字段
+    namespace = Column(String(100), nullable=False, default='default', index=True, comment="领域命名空间")
+    domain_tags = Column(JSONB, default=dict, nullable=False, comment="领域标签(JSON)")
