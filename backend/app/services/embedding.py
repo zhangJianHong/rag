@@ -307,8 +307,20 @@ class EmbeddingService:
                     vec2 = eval(vec2)
 
             # 如果vec2是向量列表,只取第一个
-            if isinstance(vec2, list) and len(vec2) > 0 and isinstance(vec2[0], list):
-                vec2 = vec2[0]
+            if isinstance(vec2, list):
+                if len(vec2) == 0:
+                    logger.warning("vec2是空列表,无法计算距离")
+                    return float('inf')
+                # 如果是嵌套列表(向量列表),取第一个向量
+                if isinstance(vec2[0], (list, str)):
+                    vec2 = vec2[0]
+                    # 如果是字符串,再次转换
+                    if isinstance(vec2, str):
+                        try:
+                            import json
+                            vec2 = json.loads(vec2)
+                        except:
+                            vec2 = eval(vec2)
 
             vec1_arr = np.array(vec1, dtype=float)
             vec2_arr = np.array(vec2, dtype=float)

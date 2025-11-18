@@ -125,11 +125,6 @@ class VectorRetrievalService:
             for i, (chunk_idx, chunk_data) in enumerate(valid_chunks):
                 similarity_pairs.append((chunk_idx, similarities[i]))
 
-
-            euclidean=   embedding_service.euclidean_distance(query_embedding, valid_embeddings)
-            logger.info(f"计算欧式距离完成, 距离：{euclidean}")
-                
-
             if not similarity_pairs:
                 logger.warning("没有有效的相似度计算结果")
                 return []
