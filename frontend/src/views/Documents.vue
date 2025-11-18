@@ -831,7 +831,8 @@ const handleFileUpload = async (files) => {
       uploadProgress.value[i] = 0
     }
 
-    await documentService.uploadDocuments(validFiles, (progress, loaded, total) => {
+    // 传递选中的领域
+    await documentService.uploadDocuments(validFiles, selectedDomain.value, (progress, loaded, total) => {
       // 找到当前正在上传的文件索引
       let currentFileIndex = 0
       let accumulatedSize = 0
@@ -845,7 +846,7 @@ const handleFileUpload = async (files) => {
       uploadProgress.value[currentFileIndex] = progress
     })
 
-    ElMessage.success(`成功上传 ${validFiles.length} 个文档`)
+    ElMessage.success(`成功上传 ${validFiles.length} 个文档到 ${selectedDomain.value} 领域`)
     await loadDocuments() // 重新加载文档列表
 
     // 清理上传进度

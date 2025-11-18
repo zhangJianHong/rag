@@ -28,7 +28,7 @@ export const documentService = {
   },
 
   // 上传文档
-  async uploadDocuments(files, onProgress) {
+  async uploadDocuments(files, namespace = 'default', onProgress) {
     const results = []
     const filesArray = Array.from(files)
     let totalProgress = 0
@@ -39,6 +39,7 @@ export const documentService = {
       for (const file of filesArray) {
         const formData = new FormData()
         formData.append('file', file) // 后端期望单个file字段
+        formData.append('namespace', namespace) // 添加领域参数
 
         const response = await apiClient.post('/api/upload', formData, {
           headers: {

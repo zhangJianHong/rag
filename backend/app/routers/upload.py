@@ -1,5 +1,5 @@
 # 导入必要的FastAPI和数据库相关模块
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
 from sqlalchemy.orm import Session
 from app.database.connection import get_db
 from app.services.embedding import embedding_service
@@ -100,6 +100,7 @@ def split_text_into_chunks(text: str, chunk_size: int = MAX_CHUNK_SIZE, overlap:
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
+    namespace: str = Form('default'),  # 新增领域参数,从表单接收
     db: Session = Depends(get_db),
     current_user: User = Depends(require_document_upload)
 ):
@@ -152,10 +153,12 @@ async def upload_document(
                 "type": file.filename.split('.')[-1],
                 "total_chunks": len(text_chunks),
                 "total_size": len(text_content),
-                "user_id": current_user.id
+                "user_id": current_user.id,
+                "namespace": namespace  # 添加领域信息到元数据
             }),
             filename=file.filename,
-            created_at=str(datetime.now())
+            created_at=str(datetime.now()),
+            namespace=namespace  # 设置领域
         )
 
         db.add(main_document)
@@ -189,7 +192,8 @@ async def upload_document(
                     }),
                     chunk_index=i,
                     filename=f"{file.filename}_chunk_{i+1}",
-                    created_at=str(datetime.now())
+                    created_at=str(datetime.now()),
+                    namespace=namespace  # 设置文档块的领域
                 )
 
                 # 保存到数据库
