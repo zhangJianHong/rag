@@ -57,32 +57,47 @@
         v-for="(chunk, index) in result.results"
         :key="chunk.chunkId"
         class="result-item"
+        :class="{ 'is-expanded': expandedItems[chunk.chunkId] }"
       >
-        <div class="result-header">
+        <div class="result-header" @click="toggleExpand(chunk.chunkId)">
+          <!-- 展开/折叠图标 -->
+          <el-icon class="expand-icon" :class="{ 'is-expanded': expandedItems[chunk.chunkId] }">
+            <ArrowRight />
+          </el-icon>
+
+          <!-- 序号 -->
           <span class="result-index">#{{ index + 1 }}</span>
+
+          <!-- 文档标题 -->
+          <span class="document-title-inline">
+            <el-icon><Document /></el-icon>
+            {{ chunk.documentTitle }}
+          </span>
+
+          <!-- 所属知识库 -->
           <DomainBadge
             :namespace="chunk.namespace"
             :display-name="chunk.domainDisplayName"
             :color="chunk.domainColor"
             size="small"
           />
+
+          <!-- 相似度分数 -->
           <el-tag type="info" size="small" class="score-tag">
             {{ (chunk.score * 100).toFixed(1) }}%
           </el-tag>
         </div>
 
-        <div class="result-content">
+        <!-- 内容区域 (可折叠) -->
+        <div v-show="expandedItems[chunk.chunkId]" class="result-content">
           <p class="content-text" v-html="highlightText(chunk.content, result.query)"></p>
-        </div>
 
-        <div class="result-footer">
-          <span class="document-title">
-            <el-icon><Document /></el-icon>
-            {{ chunk.documentTitle }}
-          </span>
-          <span class="chunk-index" v-if="chunk.chunkIndex !== null">
-            块 #{{ chunk.chunkIndex }}
-          </span>
+          <!-- 额外信息 -->
+          <div class="result-footer">
+            <span class="chunk-index" v-if="chunk.chunkIndex !== null">
+              块 #{{ chunk.chunkIndex }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -97,8 +112,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { Document } from '@element-plus/icons-vue'
+import { computed, ref, reactive } from 'vue'
+import { Document, ArrowRight } from '@element-plus/icons-vue'
 import DomainBadge from '../domain/DomainBadge.vue'
 import CrossDomainGroups from './CrossDomainGroups.vue'
 import {
@@ -114,6 +129,14 @@ const props = defineProps({
     default: null
   }
 })
+
+// 折叠/展开状态管理
+const expandedItems = reactive({})
+
+// 切换展开/折叠
+const toggleExpand = (chunkId) => {
+  expandedItems[chunkId] = !expandedItems[chunkId]
+}
 
 // 高亮文本
 const highlightText = (text, query) => {
@@ -243,7 +266,6 @@ const getConfidenceLevelType = (confidence) => {
     background: var(--tech-glass-bg);
     border: 1px solid var(--tech-glass-border);
     border-radius: 12px;
-    padding: 16px;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
@@ -262,7 +284,6 @@ const getConfidenceLevelType = (confidence) => {
 
     &:hover {
       border-color: var(--tech-border-hover);
-      transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 
       &::before {
@@ -270,17 +291,61 @@ const getConfidenceLevelType = (confidence) => {
       }
     }
 
+    &.is-expanded {
+      .result-header {
+        border-bottom: 1px solid var(--tech-glass-border);
+      }
+    }
+
     .result-header {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .expand-icon {
+        font-size: 16px;
+        color: var(--tech-text-secondary);
+        transition: transform 0.3s ease, color 0.3s ease;
+        flex-shrink: 0;
+
+        &.is-expanded {
+          transform: rotate(90deg);
+          color: var(--tech-neon-blue);
+        }
+      }
 
       .result-index {
         font-size: 14px;
         font-weight: 600;
         color: var(--tech-neon-blue);
         min-width: 30px;
+        flex-shrink: 0;
+      }
+
+      .document-title-inline {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+        color: var(--tech-text-primary);
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+
+        .el-icon {
+          font-size: 14px;
+          flex-shrink: 0;
+        }
       }
 
       .score-tag {
@@ -288,17 +353,19 @@ const getConfidenceLevelType = (confidence) => {
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid var(--tech-glass-border);
         font-weight: 600;
+        flex-shrink: 0;
       }
     }
 
     .result-content {
-      margin-bottom: 12px;
+      padding: 16px;
+      animation: slideDown 0.3s ease;
 
       .content-text {
         font-size: 14px;
         line-height: 1.6;
         color: var(--tech-text-primary);
-        margin: 0;
+        margin: 0 0 12px 0;
 
         :deep(mark.highlight) {
           background: rgba(0, 212, 255, 0.2);
@@ -313,19 +380,9 @@ const getConfidenceLevelType = (confidence) => {
     .result-footer {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-end;
       font-size: 13px;
       color: var(--tech-text-secondary);
-
-      .document-title {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-
-        .el-icon {
-          font-size: 14px;
-        }
-      }
 
       .chunk-index {
         padding: 2px 8px;
@@ -335,6 +392,17 @@ const getConfidenceLevelType = (confidence) => {
         font-size: 12px;
       }
     }
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
