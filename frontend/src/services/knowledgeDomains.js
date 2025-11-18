@@ -106,6 +106,56 @@ export const getActiveDomains = async () => {
   return response.domains
 }
 
+/**
+ * 批量更新领域优先级
+ * @param {Array} domains - 领域列表 [{namespace: string, priority: number}]
+ * @returns {Promise<Array>} 更新后的领域列表
+ */
+export const batchUpdatePriorities = async (domains) => {
+  const response = await api.put('/api/knowledge-domains/batch-priority', { domains })
+  return response.data
+}
+
+/**
+ * 获取领域关系图数据
+ * @param {string} namespace - 可选，指定领域命名空间
+ * @returns {Promise<Object>} 关系图数据
+ */
+export const getDomainRelations = async (namespace = null) => {
+  const url = namespace ? `/api/knowledge-domains/${namespace}/relations` : '/api/knowledge-domains/relations'
+  const response = await api.get(url)
+  return response.data
+}
+
+/**
+ * 导出领域数据
+ * @param {string} namespace - 可选，指定领域命名空间
+ * @param {string} format - 导出格式 (json, csv)
+ * @returns {Promise<Blob>} 导出的文件数据
+ */
+export const exportDomains = async (namespace = null, format = 'json') => {
+  const url = namespace ? `/api/knowledge-domains/${namespace}/export` : '/api/knowledge-domains/export'
+  const response = await api.get(url, {
+    params: { format },
+    responseType: 'blob'
+  })
+  return response.data
+}
+
+/**
+ * 导入领域数据
+ * @param {FormData} formData - 包含文件的表单数据
+ * @returns {Promise<Object>} 导入结果
+ */
+export const importDomains = async (formData) => {
+  const response = await api.post('/api/knowledge-domains/import', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+  return response.data
+}
+
 export default {
   getAllDomains,
   getDomainByNamespace,
@@ -114,5 +164,9 @@ export default {
   deleteDomain,
   getDomainStats,
   searchDomains,
-  getActiveDomains
+  getActiveDomains,
+  batchUpdatePriorities,
+  getDomainRelations,
+  exportDomains,
+  importDomains
 }

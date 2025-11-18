@@ -18,12 +18,14 @@ from app.models.chat import ChatSession, ChatMessage
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService
 from app.config.settings import get_settings
+import logging
 
 router = APIRouter()
 settings = get_settings()
 
 # RAG服务
 rag_service = RAGService()
+logger = logging.getLogger(__name__)
 
 
 def get_llm_service(db: Session = Depends(get_db)) -> LLMService:
@@ -70,6 +72,8 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
     发送聊天消息
     支持流式响应和RAG增强
     """
+    import logging
+    logger = logging.getLogger(__name__)
     try:
         # 获取或创建会话
         session_id = request.session_id or str(uuid.uuid4())
@@ -104,10 +108,7 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
         if user_message_count == 1 and session.title in ["新对话", "新会话", request.message[:50]]:
             # 这是第一条消息,自动生成标题
             try:
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.info(f"为会话 {session_id} 生成标题...")
-
                 new_title = await llm_svc.generate_session_title(
                     first_message=request.message,
                     model=request.model
@@ -119,8 +120,6 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
 
                 logger.info(f"会话标题已更新: {new_title}")
             except Exception as title_error:
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.error(f"生成标题失败: {title_error}")
                 # 标题生成失败不影响主流程,使用默认标题
 
@@ -137,7 +136,14 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
         # 如果启用RAG，获取相关文档
         sources = None
         if request.use_rag:
-            logger.info(f"开始检索相关文档: {request.message[:50]}...")
+
+            msg =""
+            if len(request.message) > 50:
+                msg = request.message[:50]
+            else:
+                msg = request.message
+
+            logger.info( f"开始检索相关文档: {msg}...")
             sources = await rag_service.search_relevant_docs(request.message,similarity_threshold=0.2)
             if sources:
                 # 将相关文档添加到上下文

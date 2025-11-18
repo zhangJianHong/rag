@@ -11,6 +11,7 @@ import {
   CategoryScale,
   LinearScale,
   BarElement,
+  BarController,
   LineElement,
   PointElement,
   Title,
@@ -23,6 +24,7 @@ import {
 Chart.register(
   CategoryScale,
   LinearScale,
+  BarController,
   BarElement,
   LineElement,
   PointElement,

@@ -71,7 +71,17 @@ export function useDashboard() {
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
       const host = import.meta.env.VITE_WS_URL || 'localhost:8800'
-      const wsUrl = `${protocol}//${host}/ws/dashboard`
+
+      // 获取认证token
+      const token = localStorage.getItem('access_token')
+      if (!token) {
+        console.error('没有找到认证token，无法建立WebSocket连接')
+        ElMessage.error('请先登录')
+        return
+      }
+
+      // 将token作为查询参数传递
+      const wsUrl = `${protocol}//${host}/ws/dashboard?token=${encodeURIComponent(token)}`
 
       ws = new WebSocket(wsUrl)
 

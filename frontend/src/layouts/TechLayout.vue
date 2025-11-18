@@ -155,7 +155,8 @@ import {
   DataAnalysis,
   ArrowLeft,
   ArrowRight,
-  User
+  User,
+  FolderOpened
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useSystemStatus } from '@/composables/useSystemStatus'
@@ -211,6 +212,7 @@ const menuItems = computed(() => {
   }
 
   if (authStore.hasPermission('system_settings')) {
+    items.push({ path: '/knowledge-domains', title: '知识领域', icon: FolderOpened })
     items.push({ path: '/logs', title: '系统日志', icon: DataAnalysis })
     items.push({ path: '/settings', title: '系统设置', icon: Setting })
   }

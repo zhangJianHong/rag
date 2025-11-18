@@ -47,25 +47,25 @@ def extract_text_from_txt(file_path: str) -> str:
 def split_text_into_chunks(text: str, chunk_size: int = MAX_CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> List[str]:
     """
     将文本分割成多个块
-    
+
     Args:
         text (str): 要分割的文本
         chunk_size (int): 每个块的大小
         overlap (int): 块之间的重叠字符数
-        
+
     Returns:
         List[str]: 分割后的文本块列表
     """
     if len(text) <= chunk_size:
         return [text]
-    
+
     chunks = []
     start = 0
-    
+
     while start < len(text):
         # 确定当前块的结束位置
         end = start + chunk_size
-        
+
         # 如果不是最后一块，尝试在句号、问号、感叹号处分割
         if end < len(text):
             # 查找最后一个句号、问号、感叹号
@@ -80,21 +80,21 @@ def split_text_into_chunks(text: str, chunk_size: int = MAX_CHUNK_SIZE, overlap:
                 last_sentence_end = text.rfind('?', start, end)
             if last_sentence_end == -1:
                 last_sentence_end = text.rfind('!', start, end)
-            
+
             # 如果找到句号，在句号后分割
             if last_sentence_end != -1 and last_sentence_end > start + chunk_size // 2:
                 end = last_sentence_end + 1
-        
+
         # 提取当前块
         chunk = text[start:end].strip()
         if chunk:
             chunks.append(chunk)
-        
+
         # 计算下一个块的起始位置（考虑重叠）
         start = end - overlap
         if start >= len(text):
             break
-    
+
     return chunks
 
 @router.post("/upload")
@@ -108,37 +108,37 @@ async def upload_document(
         # 验证文件类型
         if not file.filename.endswith(('.pdf', '.txt')):
             raise HTTPException(status_code=400, detail="Only PDF and TXT files are supported")
-        
+
         # 读取文件内容
         file_content = await file.read()
-        
+
         # 验证文件大小
         if len(file_content) > MAX_FILE_SIZE:
             raise HTTPException(
-                status_code=413, 
+                status_code=413,
                 detail=f"File too large. Maximum size allowed: {MAX_FILE_SIZE // (1024*1024)}MB"
             )
-        
+
         file_path = f"/tmp/{file.filename}"
-        
+
         # 保存临时文件
         with open(file_path, 'wb') as f:
             f.write(file_content)
-        
+
         # 根据文件类型提取文本
         if file.filename.endswith('.pdf'):
             text_content = extract_text_from_pdf(file_path)
         else:
             text_content = extract_text_from_txt(file_path)
-        
+
         # 验证文本内容
         if not text_content.strip():
             raise HTTPException(status_code=400, detail="No text content found in file")
-        
+
         # 将文本分割成块
         text_chunks = split_text_into_chunks(text_content)
         logger.info(f"Document split into {len(text_chunks)} chunks")
-        
+
         # 第一步：创建主文档记录
         from app.models.database import Document
         import uuid
@@ -194,15 +194,16 @@ async def upload_document(
 
                 # 保存到数据库
                 db.add(document_chunk)
-                db.commit()
-                db.refresh(document_chunk)
+                db.flush()  # flush 会分配 ID 但不会提交事务
+                # 获取ID后立即追加，避免使用 refresh 读取 vector 字段
                 document_chunk_ids.append(document_chunk.id)
+                db.commit()  # 提交事务
 
             except Exception as chunk_error:
                 logger.error(f"Error processing chunk {i+1}: {chunk_error}")
                 # 继续处理其他块，不中断整个上传过程
                 continue
-        
+
         if not document_chunk_ids:
             raise HTTPException(status_code=500, detail="Failed to process any chunks")
 
@@ -214,7 +215,7 @@ async def upload_document(
             "chunks_created": len(document_chunk_ids),
             "total_chunks": len(text_chunks)
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -397,4 +398,3 @@ async def search_documents(query: str = "", db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error searching documents: {e}")
         raise HTTPException(status_code=500, detail="Failed to search documents")
-
