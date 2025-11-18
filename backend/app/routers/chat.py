@@ -44,6 +44,7 @@ class ChatRequest(BaseModel):
     model: str = "gpt-3.5-turbo"
     temperature: float = 0.7
     max_tokens: int = 2000
+    namespace: Optional[str] = None  # 可选的知识领域过滤参数
 
 class ChatResponse(BaseModel):
     """聊天响应模型"""
@@ -156,7 +157,8 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
                     query=request.message,
                     session_id=session_id,
                     top_k=5,
-                    similarity_threshold=0.2
+                    similarity_threshold=0.2,
+                    namespace=request.namespace  # 传递用户指定的领域参数
                 )
 
                 if sources:
@@ -262,11 +264,12 @@ async def send_message_get(
     use_rag: bool = True,
     stream: bool = True,
     model: str = "gpt-3.5-turbo",
+    namespace: Optional[str] = None,  # 添加知识领域参数
     llm_svc: LLMService = Depends(get_llm_service),
     db: Session = Depends(get_db)
 ):
     """
-    发送聊天消息 (GET方法，支持URL参数)
+    发送聊天消息 (GET方法,支持URL参数)
     """
     try:
         # 构建请求对象
@@ -275,7 +278,8 @@ async def send_message_get(
             message=message,
             use_rag=use_rag,
             stream=stream,
-            model=model
+            model=model,
+            namespace=namespace  # 传递 namespace 参数
         )
         return await send_message(request, llm_svc, db)
     except Exception as e:

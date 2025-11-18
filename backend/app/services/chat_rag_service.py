@@ -58,13 +58,14 @@ class ChatRAGService:
         query: str,
         session_id: Optional[str] = None,
         top_k: Optional[int] = None,
-        similarity_threshold: Optional[float] = None
+        similarity_threshold: Optional[float] = None,
+        namespace: Optional[str] = None  # 新增:可选的知识领域参数
     ) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
         """
         为Chat优化的检索接口
 
         流程:
-        1. 领域分类
+        1. 领域分类(如果未提供namespace)
         2. 根据置信度决定检索模式(单领域/跨领域)
         3. 执行混合检索(向量+BM25)
         4. 多层降级策略
@@ -75,6 +76,7 @@ class ChatRAGService:
             session_id: 会话ID(用于性能追踪)
             top_k: 返回结果数量
             similarity_threshold: 相似度阈值
+            namespace: 可选的知识领域过滤,如果提供则跳过自动分类,直接使用指定领域
 
         Returns:
             (sources, metadata)
@@ -95,39 +97,57 @@ class ChatRAGService:
 
         classification_result = None
         retrieval_mode = 'unknown'
-        namespace = 'default'
+        target_namespace = namespace or 'default'  # 使用提供的namespace或默认值
+        confidence = 1.0  # 默认置信度
 
         try:
-            # Step 1: 领域分类
-            classification_start = time.time()
-            classification_result = await self._classify_query(query)
-            classification_latency = (time.time() - classification_start) * 1000
-            performance_data['classification_latency_ms'] = classification_latency
+            # Step 1: 领域分类(如果未提供namespace)
+            classification_latency = 0.0
 
-            namespace = classification_result.get('namespace', 'default')
-            confidence = classification_result.get('confidence', 0.0)
+            if namespace:
+                # 用户显式指定了领域,跳过自动分类
+                logger.info(f"使用用户指定的领域: namespace={namespace}")
+                classification_result = {
+                    'namespace': namespace,
+                    'confidence': 1.0,  # 用户指定的领域,置信度为1.0
+                    'method': 'user_specified'
+                }
+                retrieval_mode = 'single'  # 直接使用单领域检索
+            else:
+                # 执行自动领域分类
+                classification_start = time.time()
+                classification_result = await self._classify_query(query)
+                classification_latency = (time.time() - classification_start) * 1000
+                performance_data['classification_latency_ms'] = classification_latency
 
-            logger.info(
-                f"领域分类结果: namespace={namespace}, "
-                f"confidence={confidence:.2f}, "
-                f"latency={classification_latency:.0f}ms"
-            )
+                target_namespace = classification_result.get('namespace', 'default')
+                confidence = classification_result.get('confidence', 0.0)
 
-            # Step 2: 决定检索模式
+                logger.info(
+                    f"领域分类结果: namespace={target_namespace}, "
+                    f"confidence={confidence:.2f}, "
+                    f"latency={classification_latency:.0f}ms"
+                )
+
+                # 根据置信度决定检索模式
+                if confidence >= self.classification_confidence_threshold:
+                    retrieval_mode = 'single'
+                else:
+                    retrieval_mode = 'cross'
+                    logger.info(f"置信度较低({confidence:.2f}), 启用跨领域检索")
+
+            # Step 2: 执行检索
             retrieval_start = time.time()
 
-            if confidence >= self.classification_confidence_threshold:
-                # 高置信度: 单领域检索
-                retrieval_mode = 'single'
+            if retrieval_mode == 'single':
+                # 单领域检索
                 results, error = await self._single_domain_search(
                     query=query,
-                    namespace=namespace,
+                    namespace=target_namespace,
                     top_k=top_k
                 )
             else:
-                # 低置信度: 跨领域检索
-                retrieval_mode = 'cross'
-                logger.info(f"置信度较低({confidence:.2f}), 启用跨领域检索")
+                # 跨领域检索
                 results, error = await self._cross_domain_search(
                     query=query,
                     top_k=top_k
@@ -135,7 +155,7 @@ class ChatRAGService:
 
             retrieval_latency = (time.time() - retrieval_start) * 1000
             performance_data['retrieval_latency_ms'] = retrieval_latency
-            performance_data['namespace'] = namespace
+            performance_data['namespace'] = target_namespace
 
             # Step 3: 转换为兼容格式
             sources = self._convert_to_legacy_format(results)
@@ -161,7 +181,7 @@ class ChatRAGService:
                 result_data={
                     'total_candidates': len(results),
                     'total_results': len(sources),
-                    'namespace': namespace
+                    'namespace': target_namespace
                 },
                 session_id=session_id,
                 error=error
