@@ -218,6 +218,7 @@ const sendMessage = async () => {
           model: selectedModel.value,
           useRAG: true,
           stream: true,
+          namespace: retrievalSettings.value.namespace,  // 传递领域参数
           context  // 传递上下文
         })
       } else {
@@ -229,7 +230,8 @@ const sendMessage = async () => {
           message,
           model: selectedModel.value,
           useRAG: false,
-          stream: true
+          stream: true,
+          namespace: retrievalSettings.value.namespace  // 即使降级也传递领域参数
         })
       }
     } else {
@@ -239,7 +241,8 @@ const sendMessage = async () => {
         message,
         model: selectedModel.value,
         useRAG: false,
-        stream: true
+        stream: true,
+        namespace: retrievalSettings.value.namespace  // 普通聊天也可传递领域参数(虽然不会使用)
       })
     }
 
