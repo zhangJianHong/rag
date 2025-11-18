@@ -83,6 +83,19 @@ class VectorRetrievalService:
             chunks_with_embeddings = []
 
             for row in result:
+                # 处理 embedding 字段 - 可能是字符串格式
+                embedding = row.embedding
+                if isinstance(embedding, str):
+                    try:
+                        import json
+                        embedding = json.loads(embedding)
+                    except:
+                        try:
+                            embedding = eval(embedding)
+                        except:
+                            logger.warning(f"无法解析文档块 {row.id} 的 embedding")
+                            embedding = None
+
                 chunks_with_embeddings.append({
                     "id": row.id,
                     "document_id": row.document_id,
@@ -91,7 +104,7 @@ class VectorRetrievalService:
                     "filename": row.filename,
                     "metadata": row.chunk_metadata,
                     "created_at": row.created_at,
-                    "embedding": row.embedding,
+                    "embedding": embedding,
                     "namespace": row.namespace if hasattr(row, 'namespace') else 'default'
                 })
 
