@@ -372,22 +372,39 @@ class ChatRAGService:
                 similarity_threshold=similarity_threshold
             )
 
-    def _convert_to_legacy_format(self, results: List[Dict]) -> List[Dict[str, Any]]:
+    def _convert_to_legacy_format(self, results: List[Any]) -> List[Dict[str, Any]]:
         """
         将检索结果转换为旧格式，保持向后兼容
 
-        新格式: ChunkResult with namespace, domain_display_name, etc.
+        新格式:
+        - Dict 格式: {chunk_id, content, score, ...}
+        - Tuple 格式: (chunk_dict, score)
+
         旧格式: {chunk_id, content, similarity, filename}
 
         Args:
-            results: 检索结果列表
+            results: 检索结果列表 (可能是Dict或Tuple)
 
         Returns:
             兼容旧格式的结果列表
         """
         legacy_sources = []
 
-        for result in results:
+        for item in results:
+            # 处理不同的返回格式
+            if isinstance(item, tuple):
+                # BM25 返回 (chunk_dict, score) 格式
+                result, score = item
+                result = dict(result)  # 确保是字典
+                if 'score' not in result and 'similarity' not in result:
+                    result['similarity'] = score
+            elif isinstance(item, dict):
+                # 向量检索返回 dict 格式
+                result = item
+            else:
+                logger.warning(f"未知的结果格式: {type(item)}, 跳过")
+                continue
+
             # 提取必要字段
             legacy_source = {
                 'chunk_id': result.get('chunk_id') or result.get('id'),
