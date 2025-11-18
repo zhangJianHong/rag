@@ -17,13 +17,14 @@ from app.database import get_db
 from app.models.chat import ChatSession, ChatMessage
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService
+from app.services.chat_rag_service import ChatRAGService
 from app.config.settings import get_settings
 import logging
 
 router = APIRouter()
 settings = get_settings()
 
-# RAG服务
+# RAG服务(保留旧服务作为降级备用)
 rag_service = RAGService()
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,9 @@ class ChatResponse(BaseModel):
     sources: Optional[List[Dict]] = None
     tokens_used: Optional[int] = None
     timestamp: Optional[datetime] = None
+    # 新增可选字段(向后兼容)
+    domain_classification: Optional[Dict] = None
+    retrieval_stats: Optional[Dict] = None
 
 class SessionCreate(BaseModel):
     """创建会话请求"""
@@ -135,23 +139,61 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
 
         # 如果启用RAG，获取相关文档
         sources = None
+        rag_metadata = None
         if request.use_rag:
-
-            msg =""
+            msg = ""
             if len(request.message) > 50:
                 msg = request.message[:50]
             else:
                 msg = request.message
 
-            logger.info( f"开始检索相关文档: {msg}...")
-            sources = await rag_service.search_relevant_docs(request.message,similarity_threshold=0.2)
-            if sources:
-                # 将相关文档添加到上下文
-                context = "\n".join([doc["content"] for doc in sources[:3]])
-                messages.append({
-                    "role": "system",
-                    "content": f"参考以下文档内容回答用户问题：\n{context}"
-                })
+            logger.info(f"开始检索相关文档: {msg}...")
+
+            try:
+                # 使用新的ChatRAGService (多领域检索)
+                chat_rag_service = ChatRAGService(db=db)
+                sources, rag_metadata = await chat_rag_service.search_for_chat(
+                    query=request.message,
+                    session_id=session_id,
+                    top_k=5,
+                    similarity_threshold=0.2
+                )
+
+                if sources:
+                    # 将相关文档添加到上下文
+                    context = "\n".join([doc["content"] for doc in sources[:3]])
+                    messages.append({
+                        "role": "system",
+                        "content": f"参考以下文档内容回答用户问题：\n{context}"
+                    })
+
+                    # 记录检索元数据
+                    if rag_metadata:
+                        logger.info(
+                            f"检索完成: mode={rag_metadata.get('retrieval_mode')}, "
+                            f"domain={rag_metadata.get('classification', {}).get('namespace')}, "
+                            f"results={len(sources)}, "
+                            f"latency={rag_metadata.get('total_latency_ms', 0):.0f}ms"
+                        )
+
+            except Exception as e:
+                logger.error(f"多领域检索失败，降级到旧方法: {e}")
+                # 降级到旧RAG方法
+                try:
+                    sources = await rag_service.search_relevant_docs(
+                        request.message,
+                        similarity_threshold=0.2
+                    )
+                    if sources:
+                        context = "\n".join([doc["content"] for doc in sources[:3]])
+                        messages.append({
+                            "role": "system",
+                            "content": f"参考以下文档内容回答用户问题：\n{context}"
+                        })
+                except Exception as e2:
+                    logger.error(f"RAG检索完全失败: {e2}")
+                    # 完全失败时，继续对话但不使用RAG
+                    sources = None
 
         # 生成响应
         if request.stream:
@@ -189,13 +231,26 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
             db.add(assistant_message)
             db.commit()
 
-            return ChatResponse(
+            # 构建响应
+            chat_response = ChatResponse(
                 session_id=session_id,
                 message=response["content"],
                 sources=sources,
                 tokens_used=response.get("tokens_used"),
                 timestamp=datetime.utcnow()
             )
+
+            # 添加扩展信息(可选)
+            if rag_metadata:
+                chat_response.domain_classification = rag_metadata.get('classification')
+                chat_response.retrieval_stats = {
+                    'retrieval_mode': rag_metadata.get('retrieval_mode'),
+                    'retrieval_method': rag_metadata.get('retrieval_method'),
+                    'total_latency_ms': rag_metadata.get('total_latency_ms'),
+                    'total_results': rag_metadata.get('total_results')
+                }
+
+            return chat_response
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
