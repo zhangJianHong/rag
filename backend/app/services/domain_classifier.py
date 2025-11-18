@@ -13,9 +13,9 @@ from datetime import datetime, timezone
 import time
 import re
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-
 from app.models.knowledge_domain import KnowledgeDomain, DomainRoutingRule
+
+# type: ignore  # SQLAlchemy 模型属性访问在 Pylance 中会产生类型警告
 
 
 @dataclass
@@ -290,7 +290,7 @@ class LLMClassifier(DomainClassifier):
         Returns:
             DomainClassificationResult
         """
-        domains = self.get_active_domains()
+        domains: List[KnowledgeDomain] = self.get_active_domains()
 
         # 构建领域描述
         domain_descriptions = []
@@ -355,7 +355,8 @@ class LLMClassifier(DomainClassifier):
 
             if not domain:
                 # 如果LLM返回的领域不存在,fallback到默认领域
-                domain = next((d for d in domains if d.namespace == 'default'), domains[0])
+                default_candidates = [d for d in domains if d.namespace == 'default']
+                domain = default_candidates[0] if default_candidates else domains[0]
                 namespace = domain.namespace
 
             return DomainClassificationResult(
@@ -374,7 +375,8 @@ class LLMClassifier(DomainClassifier):
 
         except Exception as e:
             # LLM调用失败,fallback到默认领域
-            default_domain = next((d for d in domains if d.namespace == 'default'), domains[0] if domains else None)
+            default_candidates = [d for d in domains if d.namespace == 'default'] if domains else []
+            default_domain = default_candidates[0] if default_candidates else (domains[0] if domains else None)
             if default_domain:
                 return DomainClassificationResult(
                     namespace=default_domain.namespace,
