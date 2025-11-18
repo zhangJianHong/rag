@@ -122,8 +122,7 @@ class ChatRAGService:
                 results, error = await self._single_domain_search(
                     query=query,
                     namespace=namespace,
-                    top_k=top_k,
-                    similarity_threshold=similarity_threshold
+                    top_k=top_k
                 )
             else:
                 # 低置信度: 跨领域检索
@@ -131,8 +130,7 @@ class ChatRAGService:
                 logger.info(f"置信度较低({confidence:.2f}), 启用跨领域检索")
                 results, error = await self._cross_domain_search(
                     query=query,
-                    top_k=top_k,
-                    similarity_threshold=similarity_threshold
+                    top_k=top_k
                 )
 
             retrieval_latency = (time.time() - retrieval_start) * 1000
@@ -233,8 +231,7 @@ class ChatRAGService:
         self,
         query: str,
         namespace: str,
-        top_k: int,
-        similarity_threshold: float
+        top_k: int
     ) -> Tuple[List[Dict], Optional[str]]:
         """
         单领域混合检索(带多层降级)
@@ -245,7 +242,6 @@ class ChatRAGService:
             query: 用户查询
             namespace: 领域命名空间
             top_k: 返回结果数量
-            similarity_threshold: 相似度阈值
 
         Returns:
             (results, error_message)
@@ -257,7 +253,7 @@ class ChatRAGService:
                 namespace=namespace,
                 top_k=top_k,
                 alpha=self.default_alpha,
-                similarity_threshold=similarity_threshold
+                use_rrf=True
             )
 
             if results:
@@ -276,8 +272,8 @@ class ChatRAGService:
                 query=query,
                 namespace=namespace,
                 top_k=top_k,
-                alpha=0.0,  # alpha=0 表示纯向量检索
-                similarity_threshold=similarity_threshold
+                alpha=1.0,  # alpha=1.0 表示纯向量检索
+                use_rrf=False
             )
 
             if results:
@@ -313,8 +309,7 @@ class ChatRAGService:
     async def _cross_domain_search(
         self,
         query: str,
-        top_k: int,
-        similarity_threshold: float
+        top_k: int
     ) -> Tuple[List[Dict], Optional[str]]:
         """
         跨领域检索(带降级)
@@ -322,7 +317,6 @@ class ChatRAGService:
         Args:
             query: 用户查询
             top_k: 返回结果数量
-            similarity_threshold: 相似度阈值
 
         Returns:
             (results, error_message)
@@ -341,8 +335,7 @@ class ChatRAGService:
                 return await self._single_domain_search(
                     query=query,
                     namespace='default',
-                    top_k=top_k,
-                    similarity_threshold=similarity_threshold
+                    top_k=top_k
                 )
 
             # 调用跨领域检索服务
@@ -350,8 +343,7 @@ class ChatRAGService:
                 query=query,
                 namespaces=namespaces,
                 top_k=top_k,
-                alpha=self.default_alpha,
-                similarity_threshold=similarity_threshold
+                alpha=self.default_alpha
             )
 
             if results:
@@ -368,8 +360,7 @@ class ChatRAGService:
             return await self._single_domain_search(
                 query=query,
                 namespace='default',
-                top_k=top_k,
-                similarity_threshold=similarity_threshold
+                top_k=top_k
             )
 
     def _convert_to_legacy_format(self, results: List[Any]) -> List[Dict[str, Any]]:
