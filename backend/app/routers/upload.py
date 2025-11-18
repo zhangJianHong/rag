@@ -141,9 +141,6 @@ async def upload_document(
         logger.info(f"Document split into {len(text_chunks)} chunks")
 
         # 第一步：创建主文档记录
-        from app.models.database import Document
-        import uuid
-
         main_document = Document(
             content=text_content,  # 完整文档内容
             embedding=None,  # 主文档暂时不需要嵌入向量（如果需要可以为完整文档生成）
@@ -254,7 +251,10 @@ async def list_documents(
                 filename=doc.filename,
                 content=doc.content[:200] + "..." if len(doc.content) > 200 else doc.content,
                 metadata=json.loads(doc.doc_metadata) if doc.doc_metadata else {},
-                created_at=doc.created_at
+                created_at=doc.created_at,
+                namespace=doc.namespace if hasattr(doc, 'namespace') else 'default',
+                domain_tags=doc.domain_tags if hasattr(doc, 'domain_tags') else {},
+                domain_confidence=doc.domain_confidence if hasattr(doc, 'domain_confidence') else 0.0
             )
             for doc in documents
         ]
@@ -395,7 +395,10 @@ async def search_documents(query: str = "", db: Session = Depends(get_db)):
                 filename=doc.filename,
                 content=doc.content[:200] + "..." if len(doc.content) > 200 else doc.content,
                 metadata=json.loads(doc.doc_metadata) if doc.doc_metadata else {},
-                created_at=doc.created_at
+                created_at=doc.created_at,
+                namespace=doc.namespace if hasattr(doc, 'namespace') else 'default',
+                domain_tags=doc.domain_tags if hasattr(doc, 'domain_tags') else {},
+                domain_confidence=doc.domain_confidence if hasattr(doc, 'domain_confidence') else 0.0
             )
             for doc in documents
         ]

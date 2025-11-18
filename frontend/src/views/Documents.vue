@@ -121,6 +121,16 @@
                   <span>{{ formatDate(document.uploadTime) }}</span>
                 </p>
               </div>
+              <!-- 领域标签 -->
+              <div class="document-domain" v-if="document.namespace">
+                <el-tag
+                  size="small"
+                  :type="document.namespace === 'default' ? 'info' : 'primary'"
+                  effect="plain"
+                >
+                  {{ getDomainInfo(document.namespace).icon }} {{ getDomainInfo(document.namespace).display_name }}
+                </el-tag>
+              </div>
               <div class="document-tags" v-if="document.tags && document.tags.length > 0">
                 <el-tag
                   v-for="(tag, tagIndex) in document.tags"
@@ -152,6 +162,16 @@
                     <span>{{ formatDate(document.uploadTime) }}</span>
                     <span>•</span>
                     <span>{{ document.type.toUpperCase() }}</span>
+                    <span v-if="document.namespace">•</span>
+                    <el-tag
+                      v-if="document.namespace"
+                      size="small"
+                      :type="document.namespace === 'default' ? 'info' : 'primary'"
+                      effect="plain"
+                      style="margin-left: 4px;"
+                    >
+                      {{ getDomainInfo(document.namespace).icon }} {{ getDomainInfo(document.namespace).display_name }}
+                    </el-tag>
                   </div>
                 </div>
                 <div class="document-actions">
@@ -229,6 +249,22 @@
             <div class="info-item" v-if="selectedDocument.size">
               <span class="info-label">文件大小:</span>
               <span class="info-value">{{ formatFileSize(selectedDocument.size) }}</span>
+            </div>
+            <div class="info-item" v-if="selectedDocument.namespace">
+              <span class="info-label">知识领域:</span>
+              <span class="info-value">
+                <el-tag
+                  size="small"
+                  :type="selectedDocument.namespace === 'default' ? 'info' : 'primary'"
+                  effect="plain"
+                >
+                  {{ getDomainInfo(selectedDocument.namespace).icon }} {{ getDomainInfo(selectedDocument.namespace).display_name }}
+                </el-tag>
+              </span>
+            </div>
+            <div class="info-item" v-if="selectedDocument.domainConfidence > 0">
+              <span class="info-label">分类置信度:</span>
+              <span class="info-value">{{ (selectedDocument.domainConfidence * 100).toFixed(1) }}%</span>
             </div>
           </div>
 
@@ -384,6 +420,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRagStore } from '../store/ragStore'
 import documentService from '../services/documentService'
 import DomainSelector from '../components/domain/DomainSelector.vue'
+import { getActiveDomains } from '../services/knowledgeDomains'
 import {
   Search, Upload, Folder, Grid, List, View, Download, Delete, Close,
   Plus, Document, UploadFilled
@@ -418,22 +455,43 @@ const documentStats = ref({
   byType: {},
   recent: 0
 })
+const domainList = ref([]) // 知识领域列表
 
 const folders = computed(() => {
-  const byType = documentStats.value.byType || {}
-  // 确保所有键都是字符串格式
-  const pdfCount = byType['pdf'] || byType.pdf || 0
-  const txtCount = byType['txt'] || byType.txt || 0
+  // 统计每个领域的文档数量
+  const domainCounts = {}
+  documents.value.forEach(doc => {
+    const namespace = doc.namespace || 'default'
+    domainCounts[namespace] = (domainCounts[namespace] || 0) + 1
+  })
 
-  return [
-    { id: 'all', name: '全部知识', count: documentStats.value.total || 0 },
-    { id: 'recent', name: '最近上传', count: documentStats.value.recent || 0 },
-    { id: 'pdf', name: 'PDF文档', count: pdfCount },
-    { id: 'txt', name: '文本文档', count: txtCount },
-    { id: 'chunks', name: '知识块', count: documents.value.filter(doc => doc.chunkIndex !== undefined).length },
-    { id: 'favorites', name: '收藏夹', count: 0 }, // TODO: 实现收藏功能
-    { id: 'trash', name: '回收站', count: 0 }
+  // 构建文件夹列表
+  const folderList = [
+    { id: 'all', name: '📚 全部文档', count: documents.value.length },
+    { id: 'recent', name: '🕒 最近上传', count: documentStats.value.recent || 0 }
   ]
+
+  // 添加领域分类
+  domainList.value.forEach(domain => {
+    folderList.push({
+      id: domain.namespace,
+      name: `${domain.icon || '📁'} ${domain.display_name}`,
+      count: domainCounts[domain.namespace] || 0,
+      isDomain: true
+    })
+  })
+
+  // 添加默认领域(未分类)
+  if (domainCounts['default']) {
+    folderList.push({
+      id: 'default',
+      name: '📁 未分类',
+      count: domainCounts['default'] || 0,
+      isDomain: true
+    })
+  }
+
+  return folderList
 })
 
 const tags = computed(() => {
@@ -472,16 +530,9 @@ const filteredDocuments = computed(() => {
       switch (selectedFolder.value) {
         case 'recent':
           return (Date.now() - doc.uploadTime.getTime()) < 7 * 24 * 60 * 60 * 1000
-        case 'pdf':
-          return doc.type === 'pdf'
-        case 'txt':
-          return doc.type === 'txt'
-        case 'chunks':
-          return doc.chunkIndex !== undefined
-        case 'favorites':
-          return doc.tags.includes('重要')
         default:
-          return true
+          // 按领域过滤
+          return (doc.namespace || 'default') === selectedFolder.value
       }
     })
   }
@@ -768,7 +819,10 @@ const loadDocuments = async () => {
         tags: metadata.tags || [],
         pageCount: metadata.pageCount || null,
         chunkIndex: metadata.chunk_index,
-        totalChunks: metadata.total_chunks
+        totalChunks: metadata.total_chunks,
+        namespace: doc.namespace || 'default', // 添加领域信息
+        domainTags: doc.domain_tags || {},
+        domainConfidence: doc.domain_confidence || 0
       }
     })
 
@@ -862,8 +916,31 @@ const handleFileUpload = async (files) => {
 }
 
 
-onMounted(() => {
-  loadDocuments()
+// 加载知识领域列表
+const loadDomains = async () => {
+  try {
+    domainList.value = await getActiveDomains()
+    console.log('已加载知识领域:', domainList.value.length, '个')
+  } catch (error) {
+    console.error('加载知识领域失败:', error)
+    domainList.value = []
+  }
+}
+
+// 获取领域信息
+const getDomainInfo = (namespace) => {
+  return domainList.value.find(d => d.namespace === namespace) || {
+    display_name: '未分类',
+    icon: '📁',
+    color: '#999'
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([
+    loadDocuments(),
+    loadDomains()
+  ])
 })
 </script>
 
@@ -1092,6 +1169,10 @@ onMounted(() => {
       color: var(--tech-text-secondary);
       margin: 0;
     }
+  }
+
+  .document-domain {
+    margin-top: 8px;
   }
 
   .document-tags {
