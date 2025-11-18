@@ -54,6 +54,16 @@
               v-model="retrievalSettings"
               @apply="onRetrievalSettingsApply"
             />
+            <!-- 查询结果侧边栏切换按钮 -->
+            <el-button
+              v-if="useRAG && currentQueryResult"
+              size="small"
+              :icon="resultSidebarVisible ? 'Hide' : 'View'"
+              @click="toggleResultSidebar"
+              class="toggle-sidebar-btn"
+            >
+              {{ resultSidebarVisible ? '隐藏' : '显示' }}检索结果
+            </el-button>
           </div>
         </div>
       </div>
@@ -66,11 +76,6 @@
         class="chat-messages"
       />
 
-      <!-- 查询结果展示(RAG模式) -->
-      <div v-if="useRAG && currentQueryResult" class="query-result-section">
-        <QueryResult :result="currentQueryResult" />
-      </div>
-
       <!-- 输入区域 -->
       <div class="chat-input-wrapper">
         <InputBar
@@ -80,6 +85,26 @@
           @stop="stopGeneration"
           :is-generating="isGenerating"
         />
+      </div>
+    </div>
+
+    <!-- 查询结果侧边栏 -->
+    <div
+      v-if="useRAG && currentQueryResult"
+      class="result-sidebar"
+      :class="{ 'is-visible': resultSidebarVisible }"
+    >
+      <div class="sidebar-header">
+        <h3 class="sidebar-title">检索结果</h3>
+        <el-button
+          text
+          :icon="'Close'"
+          @click="toggleResultSidebar"
+          class="close-btn"
+        />
+      </div>
+      <div class="sidebar-content">
+        <QueryResult :result="currentQueryResult" />
       </div>
     </div>
   </div>
@@ -120,6 +145,7 @@ const retrievalSettings = ref({
   similarityThreshold: 0.0
 })
 const currentQueryResult = ref(null)
+const resultSidebarVisible = ref(true) // 侧边栏默认显示
 
 // 模型相关状态
 const availableModels = ref([])
@@ -232,6 +258,10 @@ const sendMessage = async () => {
 const stopGeneration = () => {
   chatStore.stopGeneration()
   isGenerating.value = false
+}
+
+const toggleResultSidebar = () => {
+  resultSidebarVisible.value = !resultSidebarVisible.value
 }
 
 const onRetrievalSettingsApply = (newSettings) => {
@@ -374,34 +404,6 @@ onMounted(async () => {
   overflow: auto;
 }
 
-.query-result-section {
-  padding: 16px 24px;
-  background: transparent;
-  max-height: 500px;
-  overflow-y: auto;
-  border-bottom: 1px solid var(--tech-glass-border);
-
-  // 自定义滚动条
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 3px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--tech-neon-blue);
-    border-radius: 3px;
-    opacity: 0.6;
-
-    &:hover {
-      background: var(--tech-neon-purple);
-    }
-  }
-}
-
 .chat-input-wrapper {
   padding: 20px 24px;
   padding-bottom: 60px; // 增加底部内边距，避免与状态栏贴在一起
@@ -468,6 +470,125 @@ onMounted(async () => {
 
   .el-switch__action {
     background: #fff;
+  }
+}
+
+// 查询结果侧边栏
+.result-sidebar {
+  width: 420px;
+  flex-shrink: 0;
+  background: var(--tech-glass-bg);
+  border-left: 1px solid var(--tech-glass-border);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+
+  &.is-visible {
+    transform: translateX(0);
+  }
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: linear-gradient(
+      180deg,
+      transparent,
+      var(--tech-neon-purple) 30%,
+      var(--tech-neon-purple) 70%,
+      transparent
+    );
+    opacity: 0.3;
+  }
+
+  .sidebar-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--tech-glass-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        var(--tech-neon-purple) 50%,
+        transparent
+      );
+      opacity: 0.4;
+    }
+
+    .sidebar-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--tech-text-primary);
+      background: linear-gradient(135deg, var(--tech-neon-purple), var(--tech-neon-blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin: 0;
+    }
+
+    .close-btn {
+      color: var(--tech-text-secondary);
+      transition: color 0.3s ease;
+
+      &:hover {
+        color: var(--tech-neon-blue);
+      }
+    }
+  }
+
+  .sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+
+    // 自定义滚动条
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: var(--tech-neon-purple);
+      border-radius: 3px;
+      opacity: 0.6;
+
+      &:hover {
+        background: var(--tech-neon-blue);
+      }
+    }
+  }
+}
+
+.toggle-sidebar-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--tech-glass-border);
+  color: var(--tech-text-primary);
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--tech-neon-blue);
+    color: var(--tech-neon-blue);
   }
 }
 </style>
