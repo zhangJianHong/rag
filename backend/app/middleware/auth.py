@@ -6,7 +6,6 @@ from typing import Optional, List
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-import jwt
 
 from ..models.database import User, Role
 from ..services.auth import auth_service
@@ -40,7 +39,7 @@ class AuthMiddleware:
             if username is None:
                 raise credentials_exception
 
-        except jwt.PyJWTError:
+        except Exception:
             raise credentials_exception
 
         # 从数据库获取用户信息
@@ -175,7 +174,7 @@ async def get_current_user_websocket(token: str, db: Session) -> User:
         if username is None:
             raise credentials_exception
 
-    except jwt.PyJWTError:
+    except Exception:
         raise credentials_exception
 
     # 从数据库获取用户信息
