@@ -22,7 +22,7 @@ const performanceService = {
       queryParams.append('namespace', params.namespace)
     }
 
-    const response = await api.get(`/performance/stats?${queryParams.toString()}`)
+    const response = await api.get(`/api/performance/stats?${queryParams.toString()}`)
     return response.data
   },
 
@@ -43,7 +43,7 @@ const performanceService = {
       queryParams.append('limit', params.limit)
     }
 
-    const response = await api.get(`/performance/slow-queries?${queryParams.toString()}`)
+    const response = await api.get(`/api/performance/slow-queries?${queryParams.toString()}`)
     return response.data
   },
 
@@ -52,7 +52,7 @@ const performanceService = {
    * @returns {Promise} API响应
    */
   async getSystemHealth() {
-    const response = await api.get('/performance/system-health')
+    const response = await api.get('/api/performance/system-health')
     return response.data
   },
 
@@ -69,7 +69,7 @@ const performanceService = {
       queryParams.append('days', params.days)
     }
 
-    const response = await api.post(`/performance/cleanup-logs?${queryParams.toString()}`)
+    const response = await api.post(`/api/performance/cleanup-logs?${queryParams.toString()}`)
     return response.data
   },
 
@@ -78,7 +78,7 @@ const performanceService = {
    * @returns {Promise} API响应
    */
   async getLogRetention() {
-    const response = await api.get('/performance/retention')
+    const response = await api.get('/api/performance/retention')
     return response.data
   },
 
