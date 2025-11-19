@@ -157,7 +157,8 @@ import {
   ArrowRight,
   User,
   FolderOpened,
-  Connection
+  Connection,
+  Monitor
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useSystemStatus } from '@/composables/useSystemStatus'
@@ -213,6 +214,7 @@ const menuItems = computed(() => {
   }
 
   if (authStore.hasPermission('system_settings')) {
+    items.push({ path: '/performance', title: '性能监控', icon: Monitor })
     items.push({ path: '/knowledge-domains', title: '知识领域', icon: FolderOpened })
     items.push({ path: '/routing-rules', title: '路由规则', icon: Connection })
     items.push({ path: '/logs', title: '系统日志', icon: DataAnalysis })

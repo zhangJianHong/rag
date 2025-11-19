@@ -81,6 +81,16 @@ const routes = [
 
   // 管理员路由
   {
+    path: '/performance',
+    name: 'Performance',
+    component: () => import('./views/Performance.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '性能监控',
+      permissions: ['system_settings']
+    }
+  },
+  {
     path: '/knowledge-domains',
     name: 'KnowledgeDomains',
     component: () => import('./views/KnowledgeDomains.vue'),
