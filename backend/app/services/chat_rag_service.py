@@ -404,11 +404,25 @@ class ChatRAGService:
         for item in results:
             # 处理不同的返回格式
             if isinstance(item, tuple):
-                # BM25 返回 (chunk_dict, score) 格式
-                result, score = item
-                result = dict(result)  # 确保是字典
-                if 'score' not in result and 'similarity' not in result:
-                    result['similarity'] = score
+                # 检查元组长度
+                if len(item) == 3:
+                    # 跨领域检索返回 (chunk_dict, namespace, score) 格式
+                    result, namespace, score = item
+                    result = dict(result)  # 确保是字典
+                    if 'score' not in result and 'similarity' not in result:
+                        result['similarity'] = score
+                    # 保留namespace信息
+                    if 'namespace' not in result:
+                        result['namespace'] = namespace
+                elif len(item) == 2:
+                    # BM25 返回 (chunk_dict, score) 格式
+                    result, score = item
+                    result = dict(result)  # 确保是字典
+                    if 'score' not in result and 'similarity' not in result:
+                        result['similarity'] = score
+                else:
+                    logger.warning(f"未知的元组长度: {len(item)}, 跳过")
+                    continue
             elif isinstance(item, dict):
                 # 向量检索返回 dict 格式
                 result = item

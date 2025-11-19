@@ -18,6 +18,28 @@
         </div>
         <div class="meta">
           <span class="time">{{ formatTime(message.timestamp) }}</span>
+          <div class="action-buttons">
+            <!-- 重新生成按钮 - 仅对助手消息显示 -->
+            <el-tooltip v-if="message.role === 'assistant'" content="重新生成" placement="top">
+              <el-button
+                class="action-btn regenerate-btn"
+                :icon="Refresh"
+                size="small"
+                text
+                @click="regenerateMessage"
+              />
+            </el-tooltip>
+            <!-- 复制按钮 -->
+            <el-tooltip :content="copied ? '已复制!' : '复制内容'" placement="top">
+              <el-button
+                class="action-btn copy-btn"
+                :icon="copied ? SuccessFilled : DocumentCopy"
+                size="small"
+                text
+                @click="copyContent"
+              />
+            </el-tooltip>
+          </div>
         </div>
       </div>
     </div>
@@ -25,20 +47,32 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { User, Monitor } from '@element-plus/icons-vue'
-import MarkdownIt from 'markdown-it'
+import { computed, ref } from 'vue'
+import { User, Monitor, DocumentCopy, SuccessFilled, Refresh } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { marked } from 'marked'
 import hljs from 'highlight.js'
+import 'highlight.js/styles/github-dark.css'
 
-const md = new MarkdownIt({
-  highlight: function (str, lang) {
+// 配置 marked
+marked.setOptions({
+  highlight: function(code, lang) {
     if (lang && hljs.getLanguage(lang)) {
       try {
-        return hljs.highlight(str, { language: lang }).value
-      } catch (__) {}
+        return hljs.highlight(code, { language: lang }).value
+      } catch (e) {
+        console.error('Highlight error:', e)
+      }
     }
-    return ''
-  }
+    return hljs.highlightAuto(code).value
+  },
+  breaks: true,  // 支持 GitHub 风格的换行
+  gfm: true,     // 启用 GitHub Flavored Markdown
+  tables: true,  // 支持表格
+  pedantic: false,
+  sanitize: false,
+  smartLists: true,
+  smartypants: true
 })
 
 const props = defineProps({
@@ -52,6 +86,8 @@ const props = defineProps({
   }
 })
 
+const emit = defineEmits(['regenerate'])
+
 const messageClass = computed(() => ({
   'user-message': props.message.role === 'user',
   'assistant-message': props.message.role === 'assistant',
@@ -60,7 +96,7 @@ const messageClass = computed(() => ({
 
 const renderedContent = computed(() => {
   if (props.message.role === 'assistant') {
-    return md.render(props.message.content)
+    return marked.parse(props.message.content || '')
   }
   return props.message.content.replace(/\n/g, '<br>')
 })
@@ -69,6 +105,30 @@ const formatTime = (timestamp) => {
   if (!timestamp) return ''
   const date = new Date(timestamp)
   return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+}
+
+// 复制功能
+const copied = ref(false)
+
+const copyContent = async () => {
+  try {
+    await navigator.clipboard.writeText(props.message.content)
+    copied.value = true
+    ElMessage.success('内容已复制到剪贴板')
+
+    // 2秒后恢复图标
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch (err) {
+    console.error('复制失败:', err)
+    ElMessage.error('复制失败,请重试')
+  }
+}
+
+// 重新生成功能
+const regenerateMessage = () => {
+  emit('regenerate', props.message)
 }
 </script>
 
@@ -125,21 +185,201 @@ const formatTime = (timestamp) => {
 
   .text {
     color: var(--tech-text-primary);
-    line-height: 1.6;
+    line-height: 1.8;
+    font-size: 14px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 
-    :deep(pre) {
-      background: var(--tech-bg-secondary);
-      padding: 12px;
-      border-radius: 8px;
-      overflow-x: auto;
-      margin: 8px 0;
+    // 段落间距
+    :deep(p) {
+      margin: 0.8em 0;
+      line-height: 1.8;
+
+      &:first-child {
+        margin-top: 0;
+      }
+
+      &:last-child {
+        margin-bottom: 0;
+      }
     }
 
+    // 标题样式
+    :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
+      margin: 1.2em 0 0.6em 0;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--tech-neon-blue);
+
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+
+    :deep(h1) { font-size: 1.8em; border-bottom: 2px solid rgba(0, 212, 255, 0.3); padding-bottom: 0.3em; }
+    :deep(h2) { font-size: 1.5em; border-bottom: 1px solid rgba(0, 212, 255, 0.2); padding-bottom: 0.3em; }
+    :deep(h3) { font-size: 1.3em; }
+    :deep(h4) { font-size: 1.1em; }
+    :deep(h5) { font-size: 1em; }
+    :deep(h6) { font-size: 0.9em; color: var(--tech-text-secondary); }
+
+    // 列表样式
+    :deep(ul), :deep(ol) {
+      margin: 0.8em 0;
+      padding-left: 2em;
+
+      li {
+        margin: 0.4em 0;
+        line-height: 1.6;
+      }
+
+      ul, ol {
+        margin: 0.4em 0;
+      }
+    }
+
+    :deep(ul) {
+      list-style-type: disc;
+
+      ul {
+        list-style-type: circle;
+
+        ul {
+          list-style-type: square;
+        }
+      }
+    }
+
+    // 任务列表
+    :deep(input[type="checkbox"]) {
+      margin-right: 0.5em;
+    }
+
+    // 代码块样式
+    :deep(pre) {
+      background: rgba(13, 17, 23, 0.95);
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 1em 0;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      position: relative;
+
+      code {
+        background: transparent;
+        padding: 0;
+        color: #e6edf3;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+    }
+
+    // 行内代码样式
     :deep(code) {
-      background: rgba(0, 212, 255, 0.1);
+      background: rgba(0, 212, 255, 0.15);
       padding: 2px 6px;
       border-radius: 4px;
       color: var(--tech-neon-blue);
+      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+      font-size: 0.9em;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    // 引用块样式
+    :deep(blockquote) {
+      margin: 1em 0;
+      padding: 0.8em 1em;
+      border-left: 4px solid var(--tech-neon-blue);
+      background: rgba(0, 212, 255, 0.05);
+      border-radius: 0 4px 4px 0;
+      color: var(--tech-text-secondary);
+
+      p {
+        margin: 0.4em 0;
+      }
+    }
+
+    // 表格样式
+    :deep(table) {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 1em 0;
+      font-size: 0.95em;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 8px;
+      overflow: hidden;
+
+      thead {
+        background: rgba(0, 212, 255, 0.1);
+
+        th {
+          font-weight: 600;
+          color: var(--tech-neon-blue);
+        }
+      }
+
+      th, td {
+        padding: 10px 12px;
+        text-align: left;
+        border: 1px solid rgba(0, 212, 255, 0.15);
+      }
+
+      tbody tr {
+        &:nth-child(even) {
+          background: rgba(0, 212, 255, 0.03);
+        }
+
+        &:hover {
+          background: rgba(0, 212, 255, 0.08);
+        }
+      }
+    }
+
+    // 链接样式
+    :deep(a) {
+      color: var(--tech-neon-blue);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+      transition: all 0.2s ease;
+
+      &:hover {
+        border-bottom-color: var(--tech-neon-blue);
+        text-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+      }
+    }
+
+    // 水平分割线
+    :deep(hr) {
+      margin: 1.5em 0;
+      border: none;
+      border-top: 2px solid rgba(0, 212, 255, 0.2);
+    }
+
+    // 图片样式
+    :deep(img) {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin: 1em 0;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    // 强调和粗体
+    :deep(strong), :deep(b) {
+      font-weight: 600;
+      color: var(--tech-neon-blue);
+    }
+
+    :deep(em), :deep(i) {
+      font-style: italic;
+      color: var(--tech-text-secondary);
+    }
+
+    // 删除线
+    :deep(del), :deep(s) {
+      text-decoration: line-through;
+      opacity: 0.7;
     }
   }
 
@@ -147,6 +387,45 @@ const formatTime = (timestamp) => {
     margin-top: 8px;
     font-size: 12px;
     color: var(--tech-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    .action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .action-btn {
+      color: var(--tech-text-muted);
+      opacity: 0;
+      transition: all 0.2s ease;
+
+      &:hover {
+        color: var(--tech-neon-blue);
+        transform: scale(1.1);
+      }
+
+      &.regenerate-btn:hover {
+        color: var(--tech-neon-purple);
+        animation: rotate 0.6s ease-in-out;
+      }
+    }
+  }
+
+  &:hover .meta .action-btn {
+    opacity: 1;
+  }
+
+  @keyframes rotate {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
   }
 }
 

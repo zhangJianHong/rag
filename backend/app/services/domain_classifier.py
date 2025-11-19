@@ -8,6 +8,7 @@
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from os import name
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 import time
@@ -310,16 +311,43 @@ class LLMClassifier(DomainClassifier):
 
 请分析查询的主题和意图,选择最合适的领域。返回JSON格式:
 {{
-  "namespace": "最匹配的领域命名空间",
+  "namespace": "最匹配的领域的namespace(括号内的值,例如job_doc、technical_docs等)",
   "confidence": 0.0-1.0的置信度分数,
   "reasoning": "选择该领域的理由(1-2句话)",
   "alternatives": [
-    {{"namespace": "备选领域1", "confidence": 置信度}},
-    {{"namespace": "备选领域2", "confidence": 置信度}}
+    {{"namespace": "备选领域的namespace(例如job_doc)", "confidence": 置信度}},
+    {{"namespace": "备选领域的namespace", "confidence": 置信度}}
   ]
 }}
 
-注意:
+示例1:
+用户查询: "我是一名Python后端工程师,有5年微服务开发经验"
+正确返回:
+{{
+  "namespace": "job_doc",
+  "confidence": 0.95,
+  "reasoning": "查询明确提到工程师职位和工作经验,属于简历类文档",
+  "alternatives": [
+    {{"namespace": "technical_docs", "confidence": 0.3}},
+    {{"namespace": "default", "confidence": 0.1}}
+  ]
+}}
+
+示例2:
+用户查询: "FastAPI的依赖注入是如何工作的?"
+正确返回:
+{{
+  "namespace": "technical_docs",
+  "confidence": 0.90,
+  "reasoning": "查询涉及具体的技术框架使用问题,属于技术文档范畴",
+  "alternatives": [
+    {{"namespace": "default", "confidence": 0.2}}
+  ]
+}}
+
+重要提示:
+- namespace必须是括号内的英文标识符(如job_doc、technical_docs),不是中文名称
+- 例如: 对于"简历 (job_doc)",应返回"job_doc"而不是"简历"
 - 如果查询涉及多个领域,选择最主要的
 - 如果不确定,confidence应低于0.6
 - 提供2-3个备选领域
@@ -357,6 +385,8 @@ class LLMClassifier(DomainClassifier):
                 # 如果LLM返回的领域不存在,fallback到默认领域
                 default_candidates = [d for d in domains if d.namespace == 'default']
                 domain = default_candidates[0] if default_candidates else domains[0]
+                namespace = domain.namespace
+            if domain:
                 namespace = domain.namespace
 
             return DomainClassificationResult(
@@ -422,7 +452,7 @@ class HybridClassifier(DomainClassifier):
         keyword_result = await self.keyword_classifier.classify(query, context)
 
         # 如果关键词分类置信度高,直接返回
-        if keyword_result.confidence >= 0.7:
+        if keyword_result.confidence >= 0.5:
             keyword_result.method = 'hybrid'
             keyword_result.metadata['strategy'] = 'keyword_only'
             keyword_result.metadata['keyword_confidence'] = keyword_result.confidence

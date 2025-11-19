@@ -74,6 +74,7 @@
         :loading="isLoading"
         ref="chatWindow"
         class="chat-messages"
+        @regenerate="handleRegenerate"
       />
 
       <!-- 输入区域 -->
@@ -261,6 +262,101 @@ const sendMessage = async () => {
 const stopGeneration = () => {
   chatStore.stopGeneration()
   isGenerating.value = false
+}
+
+// 重新生成消息
+const handleRegenerate = async (assistantMessage) => {
+  try {
+    // 找到要重新生成的助手消息在列表中的位置
+    const messages = currentMessages.value
+    const assistantIndex = messages.findIndex(m => m === assistantMessage)
+
+    if (assistantIndex === -1 || assistantIndex === 0) {
+      ElMessage.warning('无法重新生成此消息')
+      return
+    }
+
+    // 找到上一条用户消息
+    let userMessage = null
+    for (let i = assistantIndex - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        userMessage = messages[i]
+        break
+      }
+    }
+
+    if (!userMessage) {
+      ElMessage.warning('找不到对应的用户消息')
+      return
+    }
+
+    // 删除当前助手消息和之后的所有消息
+    messages.splice(assistantIndex)
+
+    isLoading.value = true
+    isGenerating.value = true
+
+    // 重新发送消息(使用相同的设置)
+    const message = userMessage.content
+
+    // 如果开启RAG,先执行查询v2
+    if (useRAG.value) {
+      const queryResponse = await queryDocumentsV2({
+        query: message,
+        retrievalMode: retrievalSettings.value.mode,
+        retrievalMethod: retrievalSettings.value.method,
+        namespace: retrievalSettings.value.namespace,
+        topK: retrievalSettings.value.topK,
+        alpha: retrievalSettings.value.alpha,
+        similarityThreshold: retrievalSettings.value.similarityThreshold,
+        sessionId: activeSessionId.value
+      })
+
+      if (queryResponse.success) {
+        currentQueryResult.value = formatQueryResults(queryResponse.data)
+
+        const context = currentQueryResult.value.results
+          .slice(0, 5)
+          .map(r => `[${r.domainDisplayName}] ${r.content}`)
+          .join('\n\n')
+
+        await chatStore.sendMessage({
+          message,
+          model: selectedModel.value,
+          useRAG: true,
+          stream: true,
+          namespace: retrievalSettings.value.namespace,
+          context
+        })
+      } else {
+        await chatStore.sendMessage({
+          message,
+          model: selectedModel.value,
+          useRAG: false,
+          stream: true,
+          namespace: retrievalSettings.value.namespace
+        })
+      }
+    } else {
+      currentQueryResult.value = null
+      await chatStore.sendMessage({
+        message,
+        model: selectedModel.value,
+        useRAG: false,
+        stream: true,
+        namespace: retrievalSettings.value.namespace
+      })
+    }
+
+    await nextTick()
+    chatWindow.value?.scrollToBottom()
+  } catch (error) {
+    console.error('重新生成失败:', error)
+    ElMessage.error('重新生成失败：' + error.message)
+  } finally {
+    isLoading.value = false
+    isGenerating.value = false
+  }
 }
 
 const toggleResultSidebar = () => {

@@ -197,8 +197,8 @@ class EmbeddingService:
                   1表示完全相似，0表示无关，-1表示完全相反
         """
         try:
-            vec1 = np.array(vec1)
-            vec2 = np.array(vec2)
+            vec1 = np.array(vec1).tolist()
+            vec2 = np.array(vec2).tolist()
 
             # 计算余弦相似度
             dot_product = np.dot(vec1, vec2)
@@ -228,7 +228,7 @@ class EmbeddingService:
         """
         try:
             # 转换查询向量
-            query_vec = np.array(query_vec, dtype=float)
+            query_vec = np.array(query_vec, dtype=float).tolist()
 
             # 处理候选向量 - 可能是字符串格式
             processed_candidates = []

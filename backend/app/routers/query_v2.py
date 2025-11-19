@@ -229,7 +229,9 @@ async def query_documents_v2(
             retrieval_stats=RetrievalStats(
                 total_candidates=len(chunk_results),
                 method=request.retrieval_method or 'hybrid',
-                latency_ms=latency_ms
+                latency_ms=latency_ms,
+                bm25_count=len(chunk_results) if request.retrieval_method in ['bm25', 'hybrid'] else 0,
+                vector_count=len(chunk_results) if request.retrieval_method in ['vector', 'hybrid'] else 0
             )
         )
 

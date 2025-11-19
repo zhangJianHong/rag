@@ -1,0 +1,46 @@
+### 资源统计API测试
+@base_url=http://localhost:8800/api
+
+### login 登录
+# @name login
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{"username": "admin", "password": "admin123", "remember_me": false}
+
+###
+@token = {{login.response.body.access_token}}
+#@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiMzAyODM0YjktNjY5YS00NzRmLWFiMDgtMTExMDI3NGYyZTJiIiwidXNlcm5hbWUiOiJ6aGFuZ2ppYW5ob25nQDE2My5jb20iLCJpc3MiOiJyYmFjLXN5c3RlbSIsImV4cCI6MTc2MzE4NDQyMiwiaWF0IjoxNzYyOTI1MjIyfQ.IBWLyyMW7guBdYqHI9VT2DhWbB0IgqWN-x8Kw2juixA
+@auth_header = Bearer {{token}}
+
+### Query V2 - 测试领域查询
+POST {{base_url}}/query/v2
+Content-Type: application/json
+Authorization: {{auth_header}}
+
+{
+  "query": "语音识别和人物识别",
+  "namespace": "technology_competition",
+  "retrieval_mode": "auto",
+  "retrieval_method": "hybrid",
+  "top_k": 10,
+  "alpha": 0.5,
+  "similarity_threshold": 0.0,
+  "session_id": "9cbeea05-b392-4169-a53c-62c5bd5a63f8"
+}
+
+### Chat - 测试聊天领域参数
+GET {{base_url}}/chat/send?message=测试消息&use_rag=true&namespace=technical_docs&session_id=test123
+
+### Chat POST - 测试聊天领域参数
+POST {{base_url}}/chat/send
+Content-Type: application/json
+Authorization: {{auth_header}}
+
+{
+  "message": "Python装饰器是什么?",
+  "use_rag": true,
+  "stream": false,
+  "namespace": "technical_docs",
+  "session_id": "test-session-001"
+}

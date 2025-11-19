@@ -1,0 +1,23 @@
+### 资源统计API测试
+@base_url=http://localhost:8800/api
+
+### login 登录
+# @name login
+POST {{base_url}}/auth/login
+Content-Type: application/json
+
+{"username": "admin", "password": "admin123", "remember_me": false}
+
+@token = {{login.response.body.access_token}}
+@token =   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc2NDA3NjYwMCwidHlwZSI6ImFjY2VzcyJ9.NYlY4qdnaUVs4URhqc3G8meBWw3IxoksDg5tRm71KAk
+@auth_header = Bearer {{token}}
+
+
+### Query
+POST {{base_url}}/query/v2
+Content-Type: application/json
+Authorization: {{auth_header}}
+
+{"query":"Go/Python开发工程师","namespace":null,"retrieval_mode":"auto","retrieval_method":"hybrid","namespaces":null,"top_k":10,"alpha":0.5,"similarity_threshold":0,"session_id":"7dcca5da-be2a-4d43-b160-f7df621c7c39"}
+
+###
