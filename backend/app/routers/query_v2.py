@@ -460,14 +460,27 @@ def _parse_metadata(metadata_str: Optional[str]) -> Optional[Dict[str, Any]]:
     if not metadata_str:
         return None
 
+    # 如果已经是字典,直接返回
     if isinstance(metadata_str, dict):
         return metadata_str
 
-    try:
-        return json.loads(metadata_str)
-    except (json.JSONDecodeError, TypeError):
-        logger.warning(f"无法解析元数据: {metadata_str[:100]}...")
-        return None
+    # 如果是 SQLAlchemy MetaData 对象,返回空字典
+    # MetaData 类型没有 __module__ 属性,所以用类型名判断
+    if type(metadata_str).__name__ == 'MetaData':
+        logger.warning(f"收到 SQLAlchemy MetaData 对象,返回空字典")
+        return {}
+
+    # 如果是字符串,尝试解析 JSON
+    if isinstance(metadata_str, str):
+        try:
+            return json.loads(metadata_str)
+        except json.JSONDecodeError:
+            logger.warning(f"无法解析元数据 JSON: {metadata_str[:100] if len(metadata_str) > 100 else metadata_str}")
+            return {}
+
+    # 其他类型,记录警告并返回空字典
+    logger.warning(f"未知的元数据类型: {type(metadata_str).__name__}")
+    return {}
 
 
 @router.get("/query/methods", summary="获取支持的检索方法")
