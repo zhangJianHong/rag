@@ -17,7 +17,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.database import get_db
 from app.models.knowledge_domain import KnowledgeDomain
 from app.models.document import Document, DocumentChunk
-from app.models.user import User
+from app.models.database import User
 from app.models.chat import ChatSession
 
 from app.monitoring.metrics import (
