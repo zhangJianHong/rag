@@ -44,7 +44,15 @@ class ChatRequest(BaseModel):
     model: str = "gpt-3.5-turbo"
     temperature: float = 0.7
     max_tokens: int = 2000
+
+    # RAG检索参数(与query_v2保持一致)
     namespace: Optional[str] = None  # 可选的知识领域过滤参数
+    retrieval_mode: Optional[str] = 'auto'  # auto/single/cross
+    retrieval_method: Optional[str] = 'hybrid'  # vector/bm25/hybrid
+    top_k: int = 5  # 返回结果数量
+    similarity_threshold: float = 0.2  # 相似度阈值
+    alpha: float = 0.5  # 混合检索权重(0.0=纯BM25, 1.0=纯向量)
+    enable_query_rewrite: bool = True  # 是否启用查询重写
 
 class ChatResponse(BaseModel):
     """聊天响应模型"""
@@ -151,14 +159,43 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
             logger.info(f"开始检索相关文档: {msg}...")
 
             try:
-                # 使用新的ChatRAGService (多领域检索)
+                # 获取上一轮对话的领域信息
+                previous_domain = None
+                previous_confidence = 0.0
+                last_user_msg = db.query(ChatMessage).filter(
+                    ChatMessage.session_id == session_id,
+                    ChatMessage.role == 'user'
+                ).order_by(ChatMessage.timestamp.desc()).offset(1).first()  # offset(1)跳过当前刚添加的消息
+
+                if last_user_msg and last_user_msg.message_metadata:
+                    previous_domain = last_user_msg.message_metadata.get('domain_namespace')
+                    previous_confidence = last_user_msg.message_metadata.get('domain_confidence', 0.0)
+                    logger.info(
+                        f"上一轮领域: {previous_domain} (置信度: {previous_confidence:.2f})"
+                    )
+
+                # 准备聊天历史(用于查询重写)
+                recent_messages = db.query(ChatMessage).filter(
+                    ChatMessage.session_id == session_id
+                ).order_by(ChatMessage.timestamp.desc()).limit(10).all()
+
+                chat_history = [
+                    {"role": msg.role, "content": msg.content}
+                    for msg in reversed(recent_messages)
+                ]
+
+                # 使用新的ChatRAGService (多领域检索 + 会话上下文感知)
                 chat_rag_service = ChatRAGService(db=db)
                 sources, rag_metadata = await chat_rag_service.search_for_chat(
                     query=request.message,
                     session_id=session_id,
-                    top_k=5,
-                    similarity_threshold=0.2,
-                    namespace=request.namespace  # 传递用户指定的领域参数
+                    top_k=request.top_k,  # 使用请求中的参数
+                    similarity_threshold=request.similarity_threshold,  # 使用请求中的参数
+                    alpha=request.alpha,  # 混合检索权重
+                    namespace=request.namespace,  # 传递用户指定的领域参数
+                    chat_history=chat_history,  # 新增:聊天历史
+                    previous_domain=previous_domain,  # 新增:上一轮领域
+                    enable_query_rewrite=request.enable_query_rewrite  # 使用请求中的参数
                 )
 
                 if sources:
@@ -177,6 +214,65 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
                             f"results={len(sources)}, "
                             f"latency={rag_metadata.get('total_latency_ms', 0):.0f}ms"
                         )
+
+                        # 【数据持久化 - 层1: message_metadata】
+                        # 保存领域分类结果到用户消息的metadata
+                        classification = rag_metadata.get('classification', {})
+                        query_rewrite_info = rag_metadata.get('query_rewrite', {})
+                        session_context = rag_metadata.get('session_context', {})
+
+                        user_message.message_metadata = {
+                            # 领域信息
+                            'domain_namespace': classification.get('namespace'),
+                            'domain_confidence': classification.get('confidence', 0.0),
+                            'domain_method': classification.get('method'),
+                            'domain_inherited': session_context.get('domain_inherited', False),
+                            # 查询重写信息
+                            'query_rewritten': query_rewrite_info.get('was_rewritten', False),
+                            'original_query': query_rewrite_info.get('original_query'),
+                            'rewritten_query': query_rewrite_info.get('rewritten_query'),
+                            # 检索统计
+                            'retrieval_mode': rag_metadata.get('retrieval_mode'),
+                            'retrieval_results_count': len(sources),
+                            'retrieval_latency_ms': rag_metadata.get('retrieval_latency_ms', 0)
+                        }
+                        db.commit()  # 提交更新
+
+                        # 【数据持久化 - 层2: session_metadata】
+                        # 更新会话级别的领域历史
+                        if session:
+                            session_meta = session.session_metadata or {}
+
+                            # 记录领域切换历史
+                            domain_history = session_meta.get('domain_history', [])
+                            current_domain = classification.get('namespace')
+
+                            if not domain_history or domain_history[-1].get('namespace') != current_domain:
+                                from datetime import datetime
+                                domain_history.append({
+                                    'namespace': current_domain,
+                                    'timestamp': datetime.utcnow().isoformat(),
+                                    'confidence': classification.get('confidence', 0.0),
+                                    'inherited': session_context.get('domain_inherited', False)
+                                })
+
+                            # 记录主要领域(出现次数最多的领域)
+                            domain_counts = {}
+                            for item in domain_history:
+                                ns = item.get('namespace')
+                                if ns:
+                                    domain_counts[ns] = domain_counts.get(ns, 0) + 1
+
+                            primary_domain = max(domain_counts.items(), key=lambda x: x[1])[0] if domain_counts else current_domain
+
+                            session.session_metadata = {
+                                **session_meta,
+                                'domain_history': domain_history[-10:],  # 保留最近10次
+                                'primary_domain': primary_domain,
+                                'domain_switch_count': len(domain_history),
+                                'last_domain': current_domain
+                            }
+                            db.commit()
 
             except Exception as e:
                 logger.error(f"多领域检索失败，降级到旧方法: {e}")
@@ -242,6 +338,7 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
                 timestamp=datetime.utcnow()
             )
 
+            # 【数据持久化 - 层3: 响应体增强】
             # 添加扩展信息(可选)
             if rag_metadata:
                 chat_response.domain_classification = rag_metadata.get('classification')
@@ -249,7 +346,11 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
                     'retrieval_mode': rag_metadata.get('retrieval_mode'),
                     'retrieval_method': rag_metadata.get('retrieval_method'),
                     'total_latency_ms': rag_metadata.get('total_latency_ms'),
-                    'total_results': rag_metadata.get('total_results')
+                    'total_results': rag_metadata.get('total_results'),
+                    # 新增:查询重写信息
+                    'query_rewrite': rag_metadata.get('query_rewrite'),
+                    # 新增:会话上下文信息
+                    'session_context': rag_metadata.get('session_context')
                 }
 
             return chat_response

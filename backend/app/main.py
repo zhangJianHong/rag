@@ -2,6 +2,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
+from prometheus_client import make_asgi_app
 from app.routers import documents, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains, classification, query_v2, performance, websocket
 from app.config.logging_config import setup_logging, get_app_logger
 from app.middleware.logging_middleware import LoggingMiddleware, ErrorLoggingMiddleware, PerformanceLoggingMiddleware
@@ -58,6 +59,30 @@ async def startup_event():
         KnowledgeDomainBase.metadata.create_all(bind=engine)
         logger.info("Knowledge domain tables initialized successfully")
 
+        # 初始化 Reranker 模型 (如果启用)
+        from app.config.settings import ENABLE_RERANK
+        if ENABLE_RERANK:
+            try:
+                logger.info("开始初始化 Reranker 模型...")
+                from app.services.reranker_service import initialize_reranker
+                await initialize_reranker()
+                logger.info("Reranker 模型初始化成功")
+            except Exception as rerank_error:
+                logger.warning(f"Reranker 模型初始化失败 (将禁用 Rerank 功能): {rerank_error}")
+                logger.warning("系统将继续运行,但 Rerank 功能不可用")
+        else:
+            logger.info("Rerank 功能已禁用 (ENABLE_RERANK=false)")
+
+        # 启动 MetricUpdater (定时更新 Prometheus 指标)
+        try:
+            logger.info("启动 MetricUpdater...")
+            from app.monitoring.metric_updater import start_metric_updater
+            start_metric_updater()
+            logger.info("MetricUpdater 启动成功")
+        except Exception as metric_error:
+            logger.warning(f"MetricUpdater 启动失败: {metric_error}")
+            logger.warning("系统将继续运行,但定时指标更新不可用")
+
     except Exception as e:
         logger.error(f"Failed to initialize database tables: {e}")
         import traceback
@@ -97,6 +122,10 @@ app.include_router(dashboard.router, prefix="/api", tags=["Dashboard"])
 # 注册知识领域管理路由
 app.include_router(knowledge_domains.router, prefix="/api", tags=["知识领域管理"])
 
+# 注册领域路由规则路由
+from app.routers import routing_rules
+app.include_router(routing_rules.router, prefix="/api", tags=["领域路由规则"])
+
 # 注册领域分类路由
 app.include_router(classification.router, prefix="/api", tags=["领域分类"])
 
@@ -108,6 +137,10 @@ app.include_router(performance.router, prefix="/api", tags=["性能监控"])
 
 # 注册WebSocket路由
 app.include_router(websocket.router, tags=["WebSocket"])
+
+# 添加 Prometheus metrics 端点
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
 @app.get("/")
 async def root():

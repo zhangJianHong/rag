@@ -449,7 +449,7 @@
          start_time = time.time()
 
          try:
-             # 执行查询
+             # 执行查询 
              result = ...
 
              # 记录指标

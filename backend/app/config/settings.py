@@ -43,6 +43,13 @@ EMBEDDING_BACKEND = os.getenv("EMBEDDING_BACKEND", "openai")
 HUGGINGFACE_MODEL = os.getenv("HUGGINGFACE_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "auto")
 
+# Rerank 配置
+ENABLE_RERANK = os.getenv("ENABLE_RERANK", "true").lower() == "true"
+RERANKER_MODEL = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
+RERANKER_MAX_LENGTH = int(os.getenv("RERANKER_MAX_LENGTH", "512"))
+RERANKER_BATCH_SIZE = int(os.getenv("RERANKER_BATCH_SIZE", "32"))
+RERANKER_DEVICE = os.getenv("RERANKER_DEVICE", "auto")  # auto, cpu, cuda
+
 # 验证必要的环境变量
 def validate_config():
     """验证配置是否完整"""

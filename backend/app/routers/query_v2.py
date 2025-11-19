@@ -27,6 +27,12 @@ from app.services.hybrid_retrieval import get_hybrid_retrieval
 from app.services.cross_domain_retrieval import get_cross_domain_retrieval
 from app.services.query_performance import get_query_performance_logger
 from app.config.logging_config import get_app_logger
+from app.monitoring.metrics import (
+    record_query_metrics,
+    record_classification_metrics,
+    record_rerank_metrics,
+    record_retrieval_results
+)
 
 router = APIRouter()
 logger = get_app_logger()
@@ -95,6 +101,13 @@ async def query_documents_v2(
             classification_latency_ms = (time.time() - classification_start_time) * 1000
             performance_data['classification_latency_ms'] = classification_latency_ms
             logger.info(f"分类耗时: {classification_latency_ms:.2f}ms")
+
+            # 记录分类指标
+            record_classification_metrics(
+                method='hybrid',
+                namespace=classification_result.namespace,
+                latency=classification_latency_ms / 1000  # 转换为秒
+            )
 
             namespace = classification_result.namespace
 
@@ -189,6 +202,21 @@ async def query_documents_v2(
         performance_data['total_latency_ms'] = latency_ms
         performance_data['retrieval_latency_ms'] = retrieval_latency_ms
 
+        # 记录查询指标
+        record_query_metrics(
+            namespace=namespace,
+            retrieval_mode=retrieval_mode,
+            latency=latency_ms / 1000,  # 转换为秒
+            status='success'
+        )
+
+        # 记录检索结果数量
+        record_retrieval_results(
+            namespace=namespace,
+            retrieval_type=request.retrieval_method or 'hybrid',
+            count=len(chunk_results)
+        )
+
         # 构建结果统计
         domains_searched = [namespace]
         if retrieval_mode == 'cross' and domain_groups:
@@ -243,9 +271,21 @@ async def query_documents_v2(
         import traceback
         logger.error(traceback.format_exc())
 
-        # 记录错误性能日志
+        # 记录错误指标
         try:
             error_latency_ms = (time.time() - start_time) * 1000
+            record_query_metrics(
+                namespace=namespace if namespace else 'unknown',
+                retrieval_mode=retrieval_mode if 'retrieval_mode' in locals() else 'auto',
+                latency=error_latency_ms / 1000,
+                status='failure',
+                error_type=type(e).__name__
+            )
+        except Exception as metric_error:
+            logger.warning(f"记录错误指标失败: {metric_error}")
+
+        # 记录错误性能日志
+        try:
             error_performance_data = {**performance_data, 'total_latency_ms': error_latency_ms}
 
             perf_logger.log_query(

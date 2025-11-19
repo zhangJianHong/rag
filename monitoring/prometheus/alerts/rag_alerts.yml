@@ -1,0 +1,202 @@
+# RAG 系统告警规则
+
+groups:
+  # 查询性能告警
+  - name: query_performance
+    interval: 30s
+    rules:
+      # 高延迟告警
+      - alert: HighQueryLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(domain_query_latency_seconds_bucket[5m])
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "查询延迟过高"
+          description: "领域 {{ $labels.namespace }} 的 P95 查询延迟超过 2 秒 (当前: {{ $value | humanizeDuration }})"
+
+      # 极高延迟告警
+      - alert: CriticalQueryLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(domain_query_latency_seconds_bucket[5m])
+          ) > 5
+        for: 2m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "查询延迟严重过高"
+          description: "领域 {{ $labels.namespace }} 的 P95 查询延迟超过 5 秒 (当前: {{ $value | humanizeDuration }})"
+
+      # 高失败率告警
+      - alert: HighQueryFailureRate
+        expr: |
+          sum(rate(domain_query_total{status="failure"}[5m])) by (namespace) /
+          sum(rate(domain_query_total[5m])) by (namespace) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: reliability
+        annotations:
+          summary: "查询失败率过高"
+          description: "领域 {{ $labels.namespace }} 的查询失败率超过 5% (当前: {{ $value | humanizePercentage }})"
+
+      # 严重失败率告警
+      - alert: CriticalQueryFailureRate
+        expr: |
+          sum(rate(domain_query_total{status="failure"}[5m])) by (namespace) /
+          sum(rate(domain_query_total[5m])) by (namespace) > 0.20
+        for: 2m
+        labels:
+          severity: critical
+          category: reliability
+        annotations:
+          summary: "查询失败率严重过高"
+          description: "领域 {{ $labels.namespace }} 的查询失败率超过 20% (当前: {{ $value | humanizePercentage }})"
+
+      # 查询 QPS 异常低
+      - alert: LowQueryRate
+        expr: |
+          sum(rate(domain_query_total[5m])) < 0.1
+        for: 10m
+        labels:
+          severity: warning
+          category: availability
+        annotations:
+          summary: "查询 QPS 异常低"
+          description: "系统查询 QPS 低于 0.1 (当前: {{ $value | humanize }}),可能存在问题"
+
+  # 分类性能告警
+  - name: classification_performance
+    interval: 30s
+    rules:
+      # 分类延迟过高
+      - alert: HighClassificationLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(domain_classification_latency_seconds_bucket[5m])
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "领域分类延迟过高"
+          description: "分类方法 {{ $labels.method }} 的 P95 延迟超过 1 秒 (当前: {{ $value | humanizeDuration }})"
+
+  # 系统资源告警
+  - name: system_resources
+    interval: 30s
+    rules:
+      # 数据库连接池使用率高
+      - alert: HighDBPoolUsage
+        expr: db_connection_pool_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "数据库连接池使用率过高"
+          description: "连接池使用率超过 80% (当前: {{ $value | humanizePercentage }})"
+
+      # 数据库连接池使用率严重过高
+      - alert: CriticalDBPoolUsage
+        expr: db_connection_pool_usage > 0.95
+        for: 2m
+        labels:
+          severity: critical
+          category: resources
+        annotations:
+          summary: "数据库连接池使用率严重过高"
+          description: "连接池使用率超过 95% (当前: {{ $value | humanizePercentage }}),可能导致连接耗尽"
+
+      # 活跃会话数异常高
+      - alert: HighActiveSessions
+        expr: active_sessions_count > 1000
+        for: 5m
+        labels:
+          severity: warning
+          category: capacity
+        annotations:
+          summary: "活跃会话数过高"
+          description: "当前活跃会话数 {{ $value }} 超过 1000"
+
+  # 检索性能告警
+  - name: retrieval_performance
+    interval: 30s
+    rules:
+      # Rerank 延迟过高
+      - alert: HighRerankLatency
+        expr: |
+          histogram_quantile(0.95,
+            rate(rerank_latency_seconds_bucket[5m])
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "Rerank 延迟过高"
+          description: "领域 {{ $labels.namespace }} 的 Rerank P95 延迟超过 1 秒 (当前: {{ $value | humanizeDuration }})"
+
+      # Rerank 失败率高
+      - alert: HighRerankFailureRate
+        expr: |
+          sum(rate(rerank_total{status="failure"}[5m])) by (namespace) /
+          sum(rate(rerank_total[5m])) by (namespace) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: reliability
+        annotations:
+          summary: "Rerank 失败率过高"
+          description: "领域 {{ $labels.namespace }} 的 Rerank 失败率超过 10% (当前: {{ $value | humanizePercentage }})"
+
+  # 缓存性能告警
+  - name: cache_performance
+    interval: 60s
+    rules:
+      # 缓存命中率低
+      - alert: LowCacheHitRate
+        expr: cache_hit_rate < 0.5
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "缓存命中率过低"
+          description: "缓存类型 {{ $labels.cache_type }} 的命中率低于 50% (当前: {{ $value | humanizePercentage }})"
+
+  # 数据质量告警
+  - name: data_quality
+    interval: 300s
+    rules:
+      # 领域置信度低
+      - alert: LowDomainConfidence
+        expr: domain_avg_confidence < 0.6
+        for: 30m
+        labels:
+          severity: warning
+          category: quality
+        annotations:
+          summary: "领域平均置信度过低"
+          description: "领域 {{ $labels.namespace }} 的平均置信度低于 0.6 (当前: {{ $value }}),可能需要优化分类器"
+
+      # 检索结果数过少
+      - alert: LowRetrievalResults
+        expr: |
+          histogram_quantile(0.5,
+            rate(retrieval_results_count_bucket[15m])
+          ) < 3
+        for: 30m
+        labels:
+          severity: info
+          category: quality
+        annotations:
+          summary: "检索结果数偏少"
+          description: "领域 {{ $labels.namespace }} 的检索结果中位数少于 3,可能需要补充文档"

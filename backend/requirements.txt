@@ -38,6 +38,8 @@ transformers>=4.30.0
 
 # Monitoring & Observability
 traceloop-sdk>=0.47.0
+prometheus-client>=0.19.0
+apscheduler>=3.10.0
 
 
 # Standard Library Extensions (included in Python but listed for clarity)

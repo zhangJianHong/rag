@@ -1,0 +1,251 @@
+{
+  "dashboard": {
+    "title": "RAG System Overview",
+    "tags": ["rag", "overview"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "查询 QPS",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(domain_query_total[1m]))",
+            "legendFormat": "总 QPS",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(domain_query_total{status=\"success\"}[1m]))",
+            "legendFormat": "成功 QPS",
+            "refId": "B"
+          },
+          {
+            "expr": "sum(rate(domain_query_total{status=\"failure\"}[1m]))",
+            "legendFormat": "失败 QPS",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"label": "请求/秒", "format": "reqps"},
+          {"label": "", "format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "查询延迟 (P50/P95/P99)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(domain_query_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(domain_query_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(domain_query_latency_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P99",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"label": "延迟", "format": "s"},
+          {"label": "", "format": "short"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "各领域查询量",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(domain_query_total[5m])) by (namespace)",
+            "legendFormat": "{{namespace}}",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"label": "请求/秒", "format": "reqps"},
+          {"label": "", "format": "short"}
+        ]
+      },
+      {
+        "id": 4,
+        "title": "查询失败率",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "sum(rate(domain_query_total{status=\"failure\"}[5m])) / sum(rate(domain_query_total[5m]))",
+            "legendFormat": "总体失败率",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(rate(domain_query_total{status=\"failure\"}[5m])) by (namespace) / sum(rate(domain_query_total[5m])) by (namespace)",
+            "legendFormat": "{{namespace}}",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"label": "失败率", "format": "percentunit"},
+          {"label": "", "format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "活跃会话数",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "active_sessions_count",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 6,
+        "title": "活跃用户数",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 16},
+        "targets": [
+          {
+            "expr": "active_users_count",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 7,
+        "title": "数据库连接池使用率",
+        "type": "gauge",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "db_connection_pool_usage",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "max": 1,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 0.7},
+                {"color": "red", "value": 0.9}
+              ]
+            },
+            "unit": "percentunit"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "总文档数",
+        "type": "stat",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 16},
+        "targets": [
+          {
+            "expr": "sum(domain_document_count)",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none"
+        }
+      },
+      {
+        "id": 9,
+        "title": "分类延迟",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(domain_classification_latency_seconds_bucket[5m])) by (method, le))",
+            "legendFormat": "{{method}} - P95",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"label": "延迟", "format": "s"},
+          {"label": "", "format": "short"}
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Rerank 延迟",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(rerank_latency_seconds_bucket[5m])) by (namespace, le))",
+            "legendFormat": "{{namespace}} - P95",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {"label": "延迟", "format": "s"},
+          {"label": "", "format": "short"}
+        ]
+      },
+      {
+        "id": 11,
+        "title": "各领域文档数",
+        "type": "bargauge",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
+        "targets": [
+          {
+            "expr": "domain_document_count",
+            "legendFormat": "{{namespace}}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient"
+        }
+      },
+      {
+        "id": 12,
+        "title": "检索结果分布",
+        "type": "heatmap",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
+        "targets": [
+          {
+            "expr": "sum(rate(retrieval_results_count_bucket[5m])) by (le)",
+            "legendFormat": "{{le}}",
+            "refId": "A",
+            "format": "heatmap"
+          }
+        ]
+      }
+    ]
+  }
+}

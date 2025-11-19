@@ -2,25 +2,30 @@
 混合检索服务
 
 结合向量检索和BM25检索,使用RRF(Reciprocal Rank Fusion)融合算法
+支持 Rerank 精排优化
 """
 import asyncio
-from typing import List, Dict, Optional, Any,Tuple
+from typing import List, Dict, Optional, Any, Tuple
 from sqlalchemy.orm import Session
 from app.services.vector_retrieval import vector_retrieval_service
 from app.services.bm25_retrieval import get_bm25_service
+from app.services.reranker_service import get_reranker
+from app.models.document import DocumentChunk
 from app.config.logging_config import get_app_logger
 
 logger = get_app_logger()
 
 
 class HybridRetrieval:
-    """混合检索(向量 + BM25)"""
+    """混合检索(向量 + BM25 + Rerank)"""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: Session, enable_rerank: bool = True):
         self.db = db
         self.vector_retrieval = vector_retrieval_service
         self.bm25_retrieval = get_bm25_service(db)
         self.rrf_k = 60  # RRF算法参数
+        self.enable_rerank = enable_rerank
+        self.reranker = get_reranker() if enable_rerank else None
 
     async def search_by_namespace(
         self,
@@ -28,7 +33,8 @@ class HybridRetrieval:
         namespace: str,
         top_k: int = 10,
         alpha: float = 0.5,  # 向量检索权重
-        use_rrf: bool = True
+        use_rrf: bool = True,
+        use_rerank: Optional[bool] = None  # None=使用默认设置
     ) -> List[Dict[str, Any]]:
         """
         在指定领域内进行混合检索
@@ -40,25 +46,35 @@ class HybridRetrieval:
             alpha: 向量检索权重(0.0-1.0)
                    0.0 = 纯BM25, 1.0 = 纯向量, 0.5 = 均衡
             use_rrf: 是否使用RRF融合算法(否则使用加权平均)
+            use_rerank: 是否使用 Rerank 精排 (None=使用默认设置)
 
         Returns:
             List[Dict]: 混合检索结果
         """
         try:
-            logger.info(f"混合检索: {namespace}, alpha={alpha}, use_rrf={use_rrf}")
+            # 确定是否使用 Rerank
+            should_rerank = use_rerank if use_rerank is not None else self.enable_rerank
+
+            # 如果使用 Rerank,需要获取更多候选结果
+            candidate_k = top_k * 3 if should_rerank else top_k * 2
+
+            logger.info(
+                f"混合检索: {namespace}, alpha={alpha}, use_rrf={use_rrf}, "
+                f"use_rerank={should_rerank}, candidate_k={candidate_k}"
+            )
 
             # 1. 并行执行两种检索
             vector_task = self.vector_retrieval.search_by_namespace(
                 db=self.db,
                 query_text=query,
                 namespace=namespace,
-                top_k=top_k * 2  # 获取更多结果用于融合
+                top_k=candidate_k  # 获取更多结果用于融合和重排
             )
 
             bm25_task = self.bm25_retrieval.search_by_namespace(
                 query=query,
                 namespace=namespace,
-                top_k=top_k * 2
+                top_k=candidate_k
             )
 
             vector_results, bm25_results = await asyncio.gather(
@@ -85,24 +101,50 @@ class HybridRetrieval:
             # 3. 如果只有一种方法有结果,返回该方法结果
             if not vector_results:
                 logger.info("仅使用BM25结果")
-                return [chunk for chunk, score in bm25_results[:top_k]]
-
-            if not bm25_results:
+                initial_results = [chunk for chunk, score in bm25_results[:candidate_k]]
+            elif not bm25_results:
                 logger.info("仅使用向量检索结果")
-                return vector_results[:top_k]
-
-            # 4. 融合两种检索结果
-            if use_rrf:
-                merged_results = self._rrf_fusion(
-                    vector_results, bm25_results, alpha, top_k
-                )
+                initial_results = vector_results[:candidate_k]
             else:
-                merged_results = self._weighted_fusion(
-                    vector_results, bm25_results, alpha, top_k
-                )
+                # 4. 融合两种检索结果
+                if use_rrf:
+                    initial_results = self._rrf_fusion(
+                        vector_results, bm25_results, alpha, candidate_k
+                    )
+                else:
+                    initial_results = self._weighted_fusion(
+                        vector_results, bm25_results, alpha, candidate_k
+                    )
 
-            logger.info(f"混合检索完成,返回 {len(merged_results)} 个结果")
-            return merged_results
+            # 5. Rerank 精排
+            if should_rerank and self.reranker and len(initial_results) > 1:
+                try:
+                    logger.info(f"开始 Rerank,候选数: {len(initial_results)}")
+
+                    # 将 Dict 转换为 DocumentChunk 对象
+                    chunks = self._convert_to_chunks(initial_results)
+
+                    # Rerank
+                    reranked_chunks = await self.reranker.rerank(
+                        query=query,
+                        chunks=chunks,
+                        top_k=top_k,
+                        return_scores=False
+                    )
+
+                    # 转换回 Dict 格式
+                    final_results = self._convert_from_chunks(reranked_chunks)
+
+                    logger.info(f"Rerank 完成,返回 {len(final_results)} 个结果")
+                    return final_results
+
+                except Exception as e:
+                    logger.error(f"Rerank 失败,降级为融合结果: {e}")
+                    return initial_results[:top_k]
+            else:
+                # 不使用 Rerank,直接返回融合结果
+                logger.info(f"混合检索完成(无Rerank),返回 {len(initial_results[:top_k])} 个结果")
+                return initial_results[:top_k]
 
         except Exception as e:
             logger.error(f"混合检索失败: {e}")
@@ -237,7 +279,62 @@ class HybridRetrieval:
 
         return result
 
+    def _convert_to_chunks(self, results: List[Dict[str, Any]]) -> List[DocumentChunk]:
+        """将 Dict 结果转换为 DocumentChunk 对象
 
-def get_hybrid_retrieval(db: Session) -> HybridRetrieval:
-    """获取混合检索服务实例"""
-    return HybridRetrieval(db)
+        Args:
+            results: Dict 格式的检索结果
+
+        Returns:
+            DocumentChunk 对象列表
+        """
+        chunks = []
+        for result in results:
+            # 从数据库查询完整的 DocumentChunk 对象
+            chunk = self.db.query(DocumentChunk).filter(
+                DocumentChunk.id == result['id']
+            ).first()
+
+            if chunk:
+                chunks.append(chunk)
+            else:
+                logger.warning(f"未找到 chunk: {result['id']}")
+
+        return chunks
+
+    def _convert_from_chunks(self, chunks: List[DocumentChunk]) -> List[Dict[str, Any]]:
+        """将 DocumentChunk 对象转换回 Dict 格式
+
+        Args:
+            chunks: DocumentChunk 对象列表
+
+        Returns:
+            Dict 格式的结果列表
+        """
+        results = []
+        for chunk in chunks:
+            result = {
+                'id': chunk.id,
+                'document_id': chunk.document_id,
+                'chunk_index': chunk.chunk_index,
+                'content': chunk.content,
+                'metadata': chunk.metadata,
+                'namespace': chunk.namespace,
+                'domain_tags': chunk.domain_tags
+            }
+            results.append(result)
+
+        return results
+
+
+def get_hybrid_retrieval(db: Session, enable_rerank: bool = True) -> HybridRetrieval:
+    """获取混合检索服务实例
+
+    Args:
+        db: 数据库会话
+        enable_rerank: 是否启用 Rerank 精排
+
+    Returns:
+        HybridRetrieval 实例
+    """
+    return HybridRetrieval(db, enable_rerank=enable_rerank)
