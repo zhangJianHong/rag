@@ -91,6 +91,16 @@ const routes = [
     }
   },
   {
+    path: '/routing-rules',
+    name: 'RoutingRules',
+    component: () => import('./views/RoutingRules.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '路由规则管理',
+      permissions: ['system_settings']
+    }
+  },
+  {
     path: '/logs',
     name: 'Logs',
     component: () => import('./views/Logs.vue'),

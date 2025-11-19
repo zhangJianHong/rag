@@ -282,10 +282,12 @@ class DomainService:
 
         # 最近7天上传数
         seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        # 注意: Document.created_at 是字符串类型,需要转换为字符串进行比较
+        seven_days_ago_str = seven_days_ago.isoformat()
         recent_uploads = db.query(Document).filter(
             and_(
                 Document.namespace == namespace,
-                Document.created_at >= seven_days_ago
+                Document.created_at >= seven_days_ago_str
             )
         ).count()
 

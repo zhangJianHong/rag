@@ -301,12 +301,24 @@ class LLMClassifier(DomainClassifier):
                 desc += f" 关键词: {', '.join(domain.keywords[:5])}"
             domain_descriptions.append(desc)
 
+        # 获取上一轮领域信息(如果有)
+        previous_domain = context.get('previous_domain') if context else None
+        previous_domain_hint = ""
+        if previous_domain:
+            # 查找previous_domain的display_name
+            prev_domain_obj = next((d for d in domains if d.namespace == previous_domain), None)
+            if prev_domain_obj:
+                previous_domain_hint = f"""
+上一轮对话的领域: {prev_domain_obj.display_name} ({previous_domain})
+提示: 如果当前查询是对上一轮的延续或追问,应该倾向于使用相同的领域。
+"""
+
         # 构建提示词
         prompt = f"""你是一个智能分类助手。请根据用户的查询,判断它最可能属于哪个知识领域。
 
 可用的知识领域:
 {chr(10).join(domain_descriptions)}
-
+{previous_domain_hint}
 用户查询: "{query}"
 
 请分析查询的主题和意图,选择最合适的领域。返回JSON格式:
