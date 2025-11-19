@@ -167,15 +167,16 @@ class MetricUpdater:
                 ).count()
                 active_sessions_count.set(active_sessions)
 
-                # 活跃用户数 (最近 24 小时有活动的会话对应的用户)
+                # 活跃用户数 (最近 24 小时有活动的会话数作为代理指标)
+                # TODO: 当添加用户认证后,改为统计真实用户数
                 one_day_ago = datetime.utcnow() - timedelta(days=1)
-                active_users = db.query(ChatSession.user_id).filter(
+                active_sessions_24h = db.query(ChatSession).filter(
                     ChatSession.updated_at >= one_day_ago.isoformat()
-                ).distinct().count()
-                active_users_count.set(active_users)
+                ).count()
+                active_users_count.set(active_sessions_24h)
 
                 logger.debug(
-                    f"活跃会话: {active_sessions}, 活跃用户: {active_users}"
+                    f"活跃会话: {active_sessions}, 活跃会话(24h): {active_sessions_24h}"
                 )
 
             finally:
