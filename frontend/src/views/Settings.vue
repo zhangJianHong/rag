@@ -460,10 +460,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRagStore } from '../store/ragStore'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, Edit, Delete, Star } from '@element-plus/icons-vue'
+import { setTheme, getTheme } from '../utils/themeManager'
 
 const store = useRagStore()
 const activeTab = ref('llm')
@@ -791,9 +792,14 @@ const ragConfig = ref({
 })
 
 const systemConfig = ref({
-  theme: 'tech',
+  theme: getTheme(), // 从本地存储加载当前主题
   language: 'zh-CN',
   autoSave: true
+})
+
+// 监听主题变化，实时切换
+watch(() => systemConfig.value.theme, (newTheme) => {
+  setTheme(newTheme)
 })
 
 // 加载所有设置

@@ -164,6 +164,9 @@ const refreshAll = () => {
   padding: 24px;
   max-width: 1600px;
   margin: 0 auto;
+  min-height: 100%;
+  overflow-y: auto;
+  padding-bottom: 60px;
 }
 
 .page-header {

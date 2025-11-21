@@ -400,6 +400,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0; // 关键：允许flex子元素收缩以启用滚动
+  height: 100vh;
+  overflow: hidden;
 }
 
 // 顶栏样式
@@ -665,7 +668,9 @@ onUnmounted(() => {
   background: transparent;
   padding: 0;
   position: relative;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0; // 关键：允许flex子元素收缩
   margin-bottom: 50px; // 给状态条留空间
 
   .tech-content {
@@ -673,7 +678,7 @@ onUnmounted(() => {
     max-width: 100%;
     margin: 0;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
   }
 }
 
