@@ -93,7 +93,7 @@
               <div class="query-text">{{ query.query }}</div>
               <div class="query-meta">
                 <el-tag size="small">{{ query.retrieval_mode }}</el-tag>
-                <span class="latency">{{ query.latency_ms.toFixed(0) }}ms</span>
+                <span class="latency">{{ (query.total_latency_ms || query.latency_ms || 0).toFixed(0) }}ms</span>
                 <span class="time">{{ formatTime(query.timestamp) }}</span>
               </div>
             </div>
