@@ -3,91 +3,35 @@
     <!-- 动态网格背景 -->
     <div class="tech-grid-bg"></div>
 
-    <!-- 主容器 -->
-    <el-container class="h-screen relative z-10">
-      <!-- 顶栏 -->
-      <el-header class="tech-header h-16 flex items-center justify-between px-6">
-        <div class="flex items-center space-x-4">
-          <!-- 菜单收缩按钮 -->
-          <button
-            @click="toggleSidebar"
-            class="header-toggle-btn"
-            :title="isCollapsed ? '展开菜单' : '收起菜单'"
-          >
-            <el-icon :size="20">
-              <Fold v-if="!isCollapsed" />
-              <Expand v-else />
-            </el-icon>
-          </button>
-        </div>
-
-        <!-- 右侧工具栏 -->
-        <div class="flex items-center space-x-4">
-          <!-- 时间显示 -->
-          <div class="tech-time text-sm text-gray-400" style="margin-right: 20px;" >
-            {{ currentTime }}
+    <!-- 主容器 - 水平布局 -->
+    <div class="main-container">
+      <!-- 侧边栏 - 从顶部到底部 -->
+      <aside class="tech-sidebar" :style="sidebarStyle">
+        <div class="flex flex-col h-full">
+          <!-- 侧边栏头部 Logo 和标题 -->
+          <div class="sidebar-brand">
+            <div class="tech-logo">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <path d="M16 2L2 9L16 16L30 9L16 2Z" stroke="var(--tech-neon-blue)" stroke-width="2" fill="url(#logo-gradient)"/>
+                <path d="M2 23L16 30L30 23" stroke="var(--tech-neon-purple)" stroke-width="2"/>
+                <path d="M2 16L16 23L30 16" stroke="var(--tech-neon-blue)" stroke-width="2" opacity="0.6"/>
+                <defs>
+                  <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--tech-neon-blue)" stop-opacity="0.2"/>
+                    <stop offset="100%" stop-color="var(--tech-neon-purple)" stop-opacity="0.2"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <transition name="text-fade">
+              <div v-show="!isCollapsed" class="brand-text">
+                <h2 class="brand-title">RAG System</h2>
+                <span class="brand-subtitle">Intelligence Platform</span>
+              </div>
+            </transition>
           </div>
-          <!-- 用户信息 -->
-          <el-dropdown @command="handleUserMenuCommand" trigger="click">
-            <div class="tech-user flex items-center space-x-2 cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-all">
-              <div class="avatar-container-header">
-                <div class="tech-avatar-header" :class="roleAvatarClass">
-                  <span class="avatar-text-header">{{ userInitial }}</span>
-                  <div class="avatar-ring-header"></div>
-                </div>
-                <div class="absolute -bottom-1 -right-1 w-3 h-3 rounded-full" :class="userStatusDotClass"></div>
-              </div>
-              <div class="text-left">
-                <div class="text-gray-300 text-sm font-medium">{{ authStore.user?.username || 'Unknown' }}</div>
-                <!-- <div class="text-gray-500 text-xs" :class="roleTextClass">{{ roleText }}</div> -->
-              </div>
-              <i class="el-icon-arrow-down text-gray-400 text-xs"></i>
-            </div>
-            <template #dropdown>
-              <el-dropdown-menu class="tech-dropdown">
-                <el-dropdown-item command="profile" class="dropdown-item">
-                  <i class="el-icon-user mr-2"></i>个人中心
-                </el-dropdown-item>
-                <el-dropdown-item command="settings" v-if="authStore.hasPermission('system_settings')" class="dropdown-item">
-                  <i class="el-icon-setting mr-2"></i>系统设置
-                </el-dropdown-item>
-                <el-dropdown-item divided command="logout" class="dropdown-item logout-item">
-                  <i class="el-icon-switch-button mr-2"></i>退出登录
-                </el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
-        </div>
-      </el-header>
 
-      <el-container>
-        <!-- 侧边栏 -->
-        <el-aside class="tech-sidebar" :style="sidebarStyle">
-          <div class="flex flex-col h-full">
-            <!-- 侧边栏头部 Logo 和标题 -->
-            <div class="sidebar-brand">
-              <div class="tech-logo">
-                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                  <path d="M16 2L2 9L16 16L30 9L16 2Z" stroke="var(--tech-neon-blue)" stroke-width="2" fill="url(#logo-gradient)"/>
-                  <path d="M2 23L16 30L30 23" stroke="var(--tech-neon-purple)" stroke-width="2"/>
-                  <path d="M2 16L16 23L30 16" stroke="var(--tech-neon-blue)" stroke-width="2" opacity="0.6"/>
-                  <defs>
-                    <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stop-color="var(--tech-neon-blue)" stop-opacity="0.2"/>
-                      <stop offset="100%" stop-color="var(--tech-neon-purple)" stop-opacity="0.2"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
-              <transition name="text-fade">
-                <div v-show="!isCollapsed" class="brand-text">
-                  <h2 class="brand-title">RAG System</h2>
-                  <span class="brand-subtitle">Intelligence Platform</span>
-                </div>
-              </transition>
-            </div>
-
-            <!-- 导航菜单 -->
+          <!-- 导航菜单 -->
             <nav class="flex-1">
               <template v-for="(group, groupIndex) in menuGroups" :key="groupIndex">
                 <!-- 分组标题 -->
@@ -118,20 +62,72 @@
                 </router-link>
               </template>
             </nav>
+        </div>
+      </aside>
+
+      <!-- 右侧区域 -->
+      <div class="right-section">
+        <!-- 顶栏 -->
+        <header class="tech-header">
+          <div class="header-left">
+            <!-- 菜单收缩按钮 -->
+            <button
+              @click="toggleSidebar"
+              class="header-toggle-btn"
+              :title="isCollapsed ? '展开菜单' : '收起菜单'"
+            >
+              <el-icon :size="20">
+                <Fold v-if="!isCollapsed" />
+                <Expand v-else />
+              </el-icon>
+            </button>
           </div>
-        </el-aside>
+
+          <!-- 右侧工具栏 -->
+          <div class="header-right">
+            <!-- 时间显示 -->
+            <div class="tech-time">{{ currentTime }}</div>
+            <!-- 用户信息 -->
+            <el-dropdown @command="handleUserMenuCommand" trigger="click">
+              <div class="tech-user">
+                <div class="avatar-container-header">
+                  <div class="tech-avatar-header" :class="roleAvatarClass">
+                    <span class="avatar-text-header">{{ userInitial }}</span>
+                    <div class="avatar-ring-header"></div>
+                  </div>
+                  <div class="user-status-dot" :class="userStatusDotClass"></div>
+                </div>
+                <div class="user-info">
+                  <div class="user-name">{{ authStore.user?.username || 'Unknown' }}</div>
+                </div>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu class="tech-dropdown">
+                  <el-dropdown-item command="profile" class="dropdown-item">
+                    <i class="el-icon-user mr-2"></i>个人中心
+                  </el-dropdown-item>
+                  <el-dropdown-item command="settings" v-if="authStore.hasPermission('system_settings')" class="dropdown-item">
+                    <i class="el-icon-setting mr-2"></i>系统设置
+                  </el-dropdown-item>
+                  <el-dropdown-item divided command="logout" class="dropdown-item logout-item">
+                    <i class="el-icon-switch-button mr-2"></i>退出登录
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+        </header>
 
         <!-- 主内容区 -->
-        <el-main class="tech-main">
+        <main class="tech-main">
           <div class="tech-content">
-            <!-- 路由视图 -->
             <transition name="fade-transform" mode="out-in">
               <router-view />
             </transition>
           </div>
-        </el-main>
-      </el-container>
-    </el-container>
+        </main>
+      </div>
+    </div>
 
     <!-- 底部状态条 -->
     <div class="status-bar">
@@ -390,13 +386,45 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+// 主容器 - 水平布局
+.main-container {
+  display: flex;
+  height: 100vh;
+  position: relative;
+  z-index: 10;
+}
+
+// 右侧区域
+.right-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 // 顶栏样式
 .tech-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  padding: 0 24px;
   background: rgba(17, 24, 39, 0.8);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
   z-index: 100;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
 
   .header-toggle-btn {
     display: flex;
@@ -417,14 +445,54 @@ onUnmounted(() => {
       border-color: rgba(0, 212, 255, 0.3);
     }
   }
+
+  .tech-time {
+    font-size: 14px;
+    color: var(--tech-text-secondary);
+  }
+
+  .tech-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+  }
+
+  .user-info {
+    .user-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--tech-text-primary);
+    }
+  }
+
+  .user-status-dot {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
 }
 
 // 侧边栏样式
 .tech-sidebar {
+  height: 100vh;
   background: rgba(17, 24, 39, 0.6);
   backdrop-filter: blur(10px);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
+  flex-shrink: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
 
   // 品牌区域样式
   .sidebar-brand {
@@ -591,10 +659,10 @@ onUnmounted(() => {
 
 // 主内容区样式
 .tech-main {
+  flex: 1;
   background: transparent;
   padding: 0;
   position: relative;
-  height: calc(100vh - 64px - 50px); // 减去header和status bar高度
   overflow: auto;
   margin-bottom: 50px; // 给状态条留空间
 
