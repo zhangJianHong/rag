@@ -141,7 +141,7 @@ let namespaceChartInstance = null
 const fetchStats = async () => {
   loading.value = true
   try {
-    const response = await performanceService.getStats(timeRange.value)
+    const response = await performanceService.getStats({ hours: timeRange.value })
     if (response.success) {
       stats.value = response.data
       await nextTick()
@@ -161,7 +161,7 @@ const fetchStats = async () => {
 // 获取慢查询
 const fetchSlowQueries = async () => {
   try {
-    const response = await performanceService.getSlowQueries(timeRange.value, 5)
+    const response = await performanceService.getSlowQueries({ hours: timeRange.value, limit: 5 })
     if (response.success) {
       recentSlowQueries.value = response.data.slow_queries
     }
