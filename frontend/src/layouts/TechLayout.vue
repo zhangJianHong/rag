@@ -425,7 +425,7 @@ onUnmounted(() => {
     color: var(--tech-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 8px 12px 4px;
+    padding: 8px 16px 4px;
     opacity: 0.6;
     white-space: nowrap;
   }
@@ -440,7 +440,7 @@ onUnmounted(() => {
     display: flex;
     align-items: center;
     padding: 10px 12px;
-    margin-bottom: 2px;
+    margin: 0 8px 2px 8px;
     border-radius: 8px;
     color: var(--tech-text-secondary);
     text-decoration: none;
