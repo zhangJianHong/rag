@@ -8,25 +8,17 @@
       <!-- 顶栏 -->
       <el-header class="tech-header h-16 flex items-center justify-between px-6">
         <div class="flex items-center space-x-4">
-          <!-- Logo和标题 -->
-          <div class="flex items-center space-x-4">
-            <div class="tech-logo">
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <path d="M16 2L2 9L16 16L30 9L16 2Z" stroke="var(--tech-neon-blue)" stroke-width="2" fill="url(#logo-gradient)"/>
-                <path d="M2 23L16 30L30 23" stroke="var(--tech-neon-purple)" stroke-width="2"/>
-                <path d="M2 16L16 23L30 16" stroke="var(--tech-neon-blue)" stroke-width="2" opacity="0.6"/>
-                <defs>
-                  <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="var(--tech-neon-blue)" stop-opacity="0.2"/>
-                    <stop offset="100%" stop-color="var(--tech-neon-purple)" stop-opacity="0.2"/>
-                  </linearGradient>
-                </defs>
-              </svg>
-            </div>
-            <h2 class="tech-title text-sm font-bold" style=" margin-left: 10px; color: #00d4ff; text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);">
-              RAG Intelligence System
-            </h2>
-          </div>
+          <!-- 菜单收缩按钮 -->
+          <button
+            @click="toggleSidebar"
+            class="header-toggle-btn"
+            :title="isCollapsed ? '展开菜单' : '收起菜单'"
+          >
+            <el-icon :size="20">
+              <Fold v-if="!isCollapsed" />
+              <Expand v-else />
+            </el-icon>
+          </button>
         </div>
 
         <!-- 右侧工具栏 -->
@@ -72,18 +64,27 @@
         <!-- 侧边栏 -->
         <el-aside class="tech-sidebar" :style="sidebarStyle">
           <div class="flex flex-col h-full">
-            <!-- 侧边栏头部（切换按钮和菜单在同一行） -->
-            <div class="sidebar-header">
-              <button
-                @click="toggleSidebar"
-                class="sidebar-toggle-btn"
-                :title="isCollapsed ? '展开菜单' : '收起菜单'"
-              >
-                <el-icon :size="18" class="toggle-icon">
-                  <ArrowRight v-if="isCollapsed" />
-                  <ArrowLeft v-else />
-                </el-icon>
-              </button>
+            <!-- 侧边栏头部 Logo 和标题 -->
+            <div class="sidebar-brand">
+              <div class="tech-logo">
+                <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                  <path d="M16 2L2 9L16 16L30 9L16 2Z" stroke="var(--tech-neon-blue)" stroke-width="2" fill="url(#logo-gradient)"/>
+                  <path d="M2 23L16 30L30 23" stroke="var(--tech-neon-purple)" stroke-width="2"/>
+                  <path d="M2 16L16 23L30 16" stroke="var(--tech-neon-blue)" stroke-width="2" opacity="0.6"/>
+                  <defs>
+                    <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="var(--tech-neon-blue)" stop-opacity="0.2"/>
+                      <stop offset="100%" stop-color="var(--tech-neon-purple)" stop-opacity="0.2"/>
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <transition name="text-fade">
+                <div v-show="!isCollapsed" class="brand-text">
+                  <h2 class="brand-title">RAG System</h2>
+                  <span class="brand-subtitle">Intelligence Platform</span>
+                </div>
+              </transition>
             </div>
 
             <!-- 导航菜单 -->
@@ -163,12 +164,12 @@ import {
   Clock,
   HomeFilled,
   DataAnalysis,
-  ArrowLeft,
-  ArrowRight,
   User,
   FolderOpened,
   Connection,
-  Monitor
+  Monitor,
+  Fold,
+  Expand
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useSystemStatus } from '@/composables/useSystemStatus'
@@ -397,8 +398,24 @@ onUnmounted(() => {
   position: relative;
   z-index: 100;
 
-  .tech-logo {
-    animation: pulse-glow 3s infinite;
+  .header-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    color: var(--tech-text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--tech-neon-blue);
+      background: rgba(0, 212, 255, 0.1);
+      border-color: rgba(0, 212, 255, 0.3);
+    }
   }
 }
 
@@ -408,6 +425,44 @@ onUnmounted(() => {
   backdrop-filter: blur(10px);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
+
+  // 品牌区域样式
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    padding: 16px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 8px;
+    gap: 12px;
+    justify-content: center;
+
+    .tech-logo {
+      flex-shrink: 0;
+      animation: pulse-glow 3s infinite;
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--tech-neon-blue);
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+      margin: 0;
+      white-space: nowrap;
+    }
+
+    .brand-subtitle {
+      font-size: 10px;
+      color: var(--tech-text-secondary);
+      opacity: 0.7;
+      white-space: nowrap;
+    }
+  }
 
   // 分组标题样式
   .nav-group {
@@ -508,56 +563,6 @@ onUnmounted(() => {
       transition: opacity 0.3s ease;
       animation: pulse-glow 2s infinite;
     }
-  }
-
-  // 侧边栏头部样式
-  .sidebar-header {
-    padding: 12px;
-    margin-bottom: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  // 切换按钮样式
-  .sidebar-toggle-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 12px;
-    border-radius: 8px;
-    color: var(--tech-text-secondary);
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all 0.3s ease;
-    cursor: pointer;
-
-    &:hover {
-      color: var(--tech-text-primary);
-      background: rgba(0, 212, 255, 0.05);
-      border-color: rgba(0, 212, 255, 0.3);
-      transform: translateX(2px);
-    }
-
-    .toggle-icon {
-      transition: all 0.3s ease;
-    }
-
-    &:hover .toggle-icon {
-      color: var(--tech-neon-blue);
-      transform: scale(1.1);
-    }
-  }
-
-  // 侧边栏收起状态下的头部
-  &.collapsed .sidebar-header {
-    padding: 12px 8px;
-  }
-
-  // 侧边栏收起状态下的按钮
-  &.collapsed .sidebar-toggle-btn {
-    padding: 12px 0;
   }
 }
 
