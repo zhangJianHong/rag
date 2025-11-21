@@ -88,24 +88,34 @@
 
             <!-- 导航菜单 -->
             <nav class="flex-1">
-              <router-link
-                v-for="item in menuItems"
-                :key="item.path"
-                :to="item.path"
-                class="tech-nav-item"
-                :class="{ 'active': $route.path === item.path, 'collapsed': isCollapsed }"
-                :title="isCollapsed ? item.title : ''"
-              >
-                <el-icon :size="18" class="nav-icon flex-shrink-0">
-                  <component :is="item.icon" />
-                </el-icon>
-                <transition name="text-fade">
-                  <span v-show="!isCollapsed" class="nav-text ml-3">{{ item.title }}</span>
-                </transition>
-                <transition name="indicator-fade">
-                  <div v-show="!isCollapsed" class="nav-indicator"></div>
-                </transition>
-              </router-link>
+              <template v-for="(group, groupIndex) in menuGroups" :key="groupIndex">
+                <!-- 分组标题 -->
+                <div v-if="group.items.length > 0" class="nav-group">
+                  <transition name="text-fade">
+                    <div v-show="!isCollapsed" class="nav-group-title">{{ group.title }}</div>
+                  </transition>
+                  <div v-show="isCollapsed && groupIndex > 0" class="nav-group-divider"></div>
+                </div>
+                <!-- 菜单项 -->
+                <router-link
+                  v-for="item in group.items"
+                  :key="item.path"
+                  :to="item.path"
+                  class="tech-nav-item"
+                  :class="{ 'active': $route.path === item.path, 'collapsed': isCollapsed }"
+                  :title="isCollapsed ? item.title : ''"
+                >
+                  <el-icon :size="18" class="nav-icon flex-shrink-0">
+                    <component :is="item.icon" />
+                  </el-icon>
+                  <transition name="text-fade">
+                    <span v-show="!isCollapsed" class="nav-text ml-3">{{ item.title }}</span>
+                  </transition>
+                  <transition name="indicator-fade">
+                    <div v-show="!isCollapsed" class="nav-indicator"></div>
+                  </transition>
+                </router-link>
+              </template>
             </nav>
           </div>
         </el-aside>
@@ -193,39 +203,66 @@ const toggleSidebar = () => {
   localStorage.setItem('sidebar-collapsed', isCollapsed.value.toString())
 }
 
-// 菜单项配置（根据权限动态生成）
-const menuItems = computed(() => {
-  const items = []
+// 菜单分组配置（根据权限动态生成）
+const menuGroups = computed(() => {
+  const groups = []
 
-  // 基础菜单项
-  items.push({ path: '/dashboard', title: '仪表盘', icon: HomeFilled })
+  // 概览
+  groups.push({
+    title: '概览',
+    items: [
+      { path: '/dashboard', title: '仪表盘', icon: HomeFilled }
+    ]
+  })
 
-  // 根据权限添加菜单项
+  // 核心功能
+  const coreItems = []
   if (authStore.hasPermission('query_ask')) {
-    items.push({ path: '/chat', title: '智能对话', icon: ChatDotRound })
+    coreItems.push({ path: '/chat', title: '智能对话', icon: ChatDotRound })
   }
-
   if (authStore.hasPermission('document_read')) {
-    items.push({ path: '/documents', title: '文档管理', icon: Document })
+    coreItems.push({ path: '/documents', title: '文档管理', icon: Document })
   }
-
   if (authStore.hasPermission('query_history')) {
-    items.push({ path: '/history', title: '查询历史', icon: Clock })
+    coreItems.push({ path: '/history', title: '查询历史', icon: Clock })
+  }
+  if (coreItems.length > 0) {
+    groups.push({ title: '核心功能', items: coreItems })
   }
 
+  // 知识配置 (管理员)
+  const knowledgeItems = []
   if (authStore.hasPermission('system_settings')) {
-    items.push({ path: '/performance', title: '性能监控', icon: Monitor })
-    items.push({ path: '/knowledge-domains', title: '知识领域', icon: FolderOpened })
-    items.push({ path: '/routing-rules', title: '路由规则', icon: Connection })
-    items.push({ path: '/logs', title: '系统日志', icon: DataAnalysis })
-    items.push({ path: '/settings', title: '系统设置', icon: Setting })
+    knowledgeItems.push({ path: '/knowledge-domains', title: '知识领域', icon: FolderOpened })
+    knowledgeItems.push({ path: '/routing-rules', title: '路由规则', icon: Connection })
+  }
+  if (knowledgeItems.length > 0) {
+    groups.push({ title: '知识配置', items: knowledgeItems })
   }
 
+  // 系统运维 (管理员)
+  const opsItems = []
+  if (authStore.hasPermission('system_settings')) {
+    opsItems.push({ path: '/performance', title: '性能监控', icon: Monitor })
+    opsItems.push({ path: '/logs', title: '系统日志', icon: DataAnalysis })
+  }
+  if (opsItems.length > 0) {
+    groups.push({ title: '系统运维', items: opsItems })
+  }
+
+  // 系统管理 (管理员)
+  const adminItems = []
   if (authStore.hasPermission('user_management')) {
-    items.push({ path: '/user-management', title: '用户管理', icon: User })
+    adminItems.push({ path: '/user-management', title: '用户管理', icon: User })
+  }
+  if (authStore.hasPermission('system_settings')) {
+    adminItems.push({ path: '/settings', title: '系统设置', icon: Setting })
+  }
+  if (adminItems.length > 0) {
+    groups.push({ title: '系统管理', items: adminItems })
   }
 
-  return items
+  return groups
 })
 
 // 时间显示
@@ -372,11 +409,38 @@ onUnmounted(() => {
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   position: relative;
 
+  // 分组标题样式
+  .nav-group {
+    margin-top: 8px;
+    margin-bottom: 4px;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  .nav-group-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--tech-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 12px 4px;
+    opacity: 0.6;
+    white-space: nowrap;
+  }
+
+  .nav-group-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    margin: 8px 12px;
+  }
+
   .tech-nav-item {
     display: flex;
     align-items: center;
-    padding: 12px;
-    margin-bottom: 4px;
+    padding: 10px 12px;
+    margin-bottom: 2px;
     border-radius: 8px;
     color: var(--tech-text-secondary);
     text-decoration: none;

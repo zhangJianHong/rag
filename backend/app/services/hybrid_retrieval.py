@@ -19,7 +19,7 @@ logger = get_app_logger()
 class HybridRetrieval:
     """混合检索(向量 + BM25 + Rerank)"""
 
-    def __init__(self, db: Session, enable_rerank: bool = True):
+    def __init__(self, db: Session, enable_rerank: bool = False):
         self.db = db
         self.vector_retrieval = vector_retrieval_service
         self.bm25_retrieval = get_bm25_service(db)
@@ -327,7 +327,7 @@ class HybridRetrieval:
         return results
 
 
-def get_hybrid_retrieval(db: Session, enable_rerank: bool = True) -> HybridRetrieval:
+def get_hybrid_retrieval(db: Session, enable_rerank: bool = False) -> HybridRetrieval:
     """获取混合检索服务实例
 
     Args:
