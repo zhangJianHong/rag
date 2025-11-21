@@ -184,6 +184,16 @@ const handleCommand = (command) => {
 </script>
 
 <style lang="scss" scoped>
+// 全局覆盖数字输入框样式
+:deep(.el-input-number) {
+  .el-input__wrapper {
+    .el-input__inner {
+      color: var(--tech-text-primary) !important;
+      -webkit-text-fill-color: var(--tech-text-primary) !important;
+    }
+  }
+}
+
 .settings-button {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--tech-glass-border);
@@ -208,10 +218,19 @@ const handleCommand = (command) => {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
   padding: 0;
 
+  // 确保所有输入框文字颜色正确
+  .el-input__inner {
+    color: var(--tech-text-primary) !important;
+  }
+
+  .el-input-number .el-input__inner {
+    color: var(--tech-text-primary) !important;
+  }
+
   .settings-panel {
     padding: 16px;
-    min-width: 320px;
-    max-width: 400px;
+    min-width: 380px;
+    max-width: 450px;
 
     .setting-section {
       margin-bottom: 20px;
@@ -329,6 +348,27 @@ const handleCommand = (command) => {
 
         .el-input-number {
           width: 100%;
+        }
+
+        // 覆盖数字输入框的文字颜色
+        :deep(.el-input-number) {
+          .el-input__wrapper {
+            .el-input__inner {
+              color: var(--tech-text-primary) !important;
+            }
+          }
+
+          .el-input-number__decrease,
+          .el-input-number__increase {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: var(--tech-glass-border);
+            color: var(--tech-text-secondary);
+
+            &:hover {
+              background: rgba(255, 255, 255, 0.08);
+              color: var(--tech-text-primary);
+            }
+          }
         }
 
         :deep(.el-slider) {

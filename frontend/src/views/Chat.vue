@@ -133,7 +133,7 @@ const currentMessages = computed(() => chatStore.currentMessages)
 const isLoading = ref(false)
 const isGenerating = ref(false)
 const inputMessage = ref('')
-const selectedModel = ref('gpt-3.5-turbo')
+const selectedModel = ref('') // 初始为空，将在加载模型后设置默认模型
 const useRAG = ref(true)
 
 // 检索相关状态
@@ -386,10 +386,11 @@ const loadAvailableModels = async () => {
     console.log('【调试】分组的模型选项:', grouped)
     groupedModelOptions.value = grouped
 
-    // 如果当前选择的模型不在列表中，选择第一个
-    const hasCurrentModel = chatModels.some(m => m.name === selectedModel.value)
-    if (!hasCurrentModel && chatModels.length > 0) {
-      selectedModel.value = chatModels[0].name
+    // 设置默认模型：优先选择 is_default=true 的模型，否则选择第一个
+    if (chatModels.length > 0) {
+      const defaultModel = chatModels.find(m => m.is_default === true)
+      selectedModel.value = defaultModel ? defaultModel.name : chatModels[0].name
+      console.log('✓ 选择默认模型:', selectedModel.value)
     }
 
     console.log('✓ 已加载模型:', chatModels.length, '个')
