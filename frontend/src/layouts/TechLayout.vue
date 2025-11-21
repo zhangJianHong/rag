@@ -498,11 +498,13 @@ onUnmounted(() => {
   .sidebar-brand {
     display: flex;
     align-items: center;
-    padding: 16px 8px 16px 16px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    height: 64px;
+    padding: 0 8px 0 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 8px;
     gap: 12px;
     justify-content: flex-start;
+    flex-shrink: 0;
 
     .tech-logo {
       flex-shrink: 0;
