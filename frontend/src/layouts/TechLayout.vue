@@ -165,7 +165,8 @@ import {
   Connection,
   Monitor,
   Fold,
-  Expand
+  Expand,
+  Refresh
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useSystemStatus } from '@/composables/useSystemStatus'
@@ -219,6 +220,9 @@ const menuGroups = computed(() => {
   }
   if (authStore.hasPermission('document_read')) {
     coreItems.push({ path: '/documents', title: '文档管理', icon: Document })
+  }
+  if (authStore.hasPermission('document_write')) {
+    coreItems.push({ path: '/index-management', title: '索引管理', icon: Refresh })
   }
   if (authStore.hasPermission('query_history')) {
     coreItems.push({ path: '/history', title: '查询历史', icon: Clock })

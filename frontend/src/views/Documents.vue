@@ -1063,9 +1063,11 @@ const handleFileUpload = async (files) => {
 
   const validFiles = files.filter(file => {
     const isValidType = file.name.toLowerCase().endsWith('.pdf') ||
-                      file.name.toLowerCase().endsWith('.txt')
+                      file.name.toLowerCase().endsWith('.txt') ||
+                      file.name.toLowerCase().endsWith('.doc') ||
+                      file.name.toLowerCase().endsWith('.docx')
     if (!isValidType) {
-      ElMessage.warning(`文件 ${file.name} 不是支持的格式，仅支持PDF和TXT文件`)
+      ElMessage.warning(`文件 ${file.name} 不是支持的格式，仅支持PDF、TXT、DOC和DOCX文件`)
       return false
     }
     if (file.size > 10 * 1024 * 1024) { // 10MB

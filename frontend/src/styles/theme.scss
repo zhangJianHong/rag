@@ -236,21 +236,26 @@
   pointer-events: none;
 }
 
-// Element Plus 数字输入框文字颜色修复
+// Element Plus 数字输入框文字颜色修复 - 使用硬编码颜色确保可见性
 .el-input-number .el-input__inner,
 .el-input .el-input__inner,
-.el-input-number .el-input__wrapper .el-input__inner {
-  color: var(--tech-text-primary) !important;
-  -webkit-text-fill-color: var(--tech-text-primary) !important;
+.el-input-number .el-input__wrapper .el-input__inner,
+.el-input__wrapper .el-input__inner {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6 !important;
 }
 
-// // 覆盖所有可能的输入框样式
-// input.el-input__inner {
-//   color: var(--tech-text-primary) !important;
-// }
+// 覆盖所有可能的输入框样式
+input.el-input__inner {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6 !important;
+}
 
-// 使用属性选择器覆盖Vue scoped样式
-// [class*="data-v-"] .el-input-number .el-input__inner,
-// [class*="data-v-"] .el-input .el-input__inner {
-//   color: var(--tech-text-primary) !important;
-// }
+// Element Plus Dropdown和Popper中的输入框
+.el-popper .el-input-number .el-input__inner,
+.el-popper .el-input .el-input__inner,
+.el-dropdown-menu .el-input-number .el-input__inner,
+.el-dropdown-menu .el-input .el-input__inner {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6 !important;
+}

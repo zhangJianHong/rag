@@ -7,12 +7,16 @@ from app.models.document import DocumentChunk
 from app.models.database import Document, UserDocument, User
 from app.models.schemas import DocumentResponse
 from app.middleware.auth import get_current_active_user, require_document_upload, require_document_delete, require_document_read
+from app.services.change_detector import ChangeDetector
+from app.services.incremental_indexer import IncrementalIndexer
 import PyPDF2
+from docx import Document as DocxDocument
 import json
 import re
+import hashlib
 from datetime import datetime
 import logging
-from typing import List
+from typing import List, Optional
 
 # 创建路由器实例
 router = APIRouter()
@@ -99,6 +103,34 @@ def extract_text_from_txt(file_path: str) -> str:
         logger.error(f"Error reading text file: {e}")
         raise HTTPException(status_code=400, detail="Failed to read text file")
 
+def extract_text_from_docx(file_path: str) -> str:
+    """从DOCX文件中提取文本内容"""
+    try:
+        doc = DocxDocument(file_path)
+        text = ""
+
+        # 提取所有段落的文本
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+
+        # 提取表格中的文本
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    text += cell.text + " "
+                text += "\n"
+
+        # 清理提取的文本
+        text = clean_text_content(text)
+        return text
+    except Exception as e:
+        logger.error(f"Error extracting text from DOCX: {e}")
+        raise HTTPException(status_code=400, detail="Failed to extract text from DOCX")
+
+def calculate_content_hash(content: str) -> str:
+    """计算文档内容的MD5哈希值"""
+    return hashlib.md5(content.encode('utf-8')).hexdigest()
+
 def split_text_into_chunks(text: str, chunk_size: int = MAX_CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> List[str]:
     """
     将文本分割成多个块
@@ -156,14 +188,18 @@ def split_text_into_chunks(text: str, chunk_size: int = MAX_CHUNK_SIZE, overlap:
 async def upload_document(
     file: UploadFile = File(...),
     namespace: str = Form('default'),  # 新增领域参数,从表单接收
+    enable_change_detection: bool = Form(True),  # 是否启用变更检测
     db: Session = Depends(get_db),
     current_user: User = Depends(require_document_upload)
 ):
-    """处理文档上传请求"""
+    """处理文档上传请求,支持PDF, TXT, DOCX格式,并可选启用变更检测"""
     try:
         # 验证文件类型
-        if not file.filename.endswith(('.pdf', '.txt')):
-            raise HTTPException(status_code=400, detail="Only PDF and TXT files are supported")
+        if not file.filename.endswith(('.pdf', '.txt', '.docx', '.doc')):
+            raise HTTPException(
+                status_code=400,
+                detail="Only PDF, TXT, DOC and DOCX files are supported"
+            )
 
         # 读取文件内容
         file_content = await file.read()
@@ -184,6 +220,8 @@ async def upload_document(
         # 根据文件类型提取文本
         if file.filename.endswith('.pdf'):
             text_content = extract_text_from_pdf(file_path)
+        elif file.filename.endswith(('.docx', '.doc')):
+            text_content = extract_text_from_docx(file_path)
         else:
             text_content = extract_text_from_txt(file_path)
 
@@ -263,7 +301,73 @@ async def upload_document(
         if not document_chunk_ids:
             raise HTTPException(status_code=500, detail="Failed to process any chunks")
 
-        return {
+        # 集成变更检测功能
+        change_detection_result = None
+        if enable_change_detection:
+            try:
+                # 计算文档内容哈希
+                content_hash = calculate_content_hash(text_content)
+
+                # 创建或更新索引记录
+                from app.models.index_record import DocumentIndexRecord
+
+                # 检查是否已存在索引记录
+                existing_record = db.query(DocumentIndexRecord).filter(
+                    DocumentIndexRecord.doc_id == main_document.id
+                ).first()
+
+                now = datetime.now()
+
+                if existing_record:
+                    # 更新现有记录
+                    old_hash = existing_record.content_hash
+                    existing_record.content_hash = content_hash
+                    existing_record.chunk_count = len(document_chunk_ids)
+                    existing_record.vector_count = len(document_chunk_ids)
+                    existing_record.indexed_at = now
+                    existing_record.file_size = len(file_content)
+                    existing_record.file_modified_at = now
+                    existing_record.index_version += 1
+
+                    change_detection_result = {
+                        "status": "updated" if old_hash != content_hash else "unchanged",
+                        "old_hash": old_hash,
+                        "new_hash": content_hash,
+                        "index_version": existing_record.index_version
+                    }
+                else:
+                    # 创建新索引记录
+                    new_record = DocumentIndexRecord(
+                        doc_id=main_document.id,
+                        content_hash=content_hash,
+                        chunk_count=len(document_chunk_ids),
+                        vector_count=len(document_chunk_ids),
+                        indexed_at=now,
+                        file_size=len(file_content),
+                        file_modified_at=now,
+                        index_version=1,
+                        namespace=namespace
+                    )
+                    db.add(new_record)
+
+                    change_detection_result = {
+                        "status": "new",
+                        "content_hash": content_hash,
+                        "index_version": 1
+                    }
+
+                db.commit()
+                logger.info(f"变更检测完成: {change_detection_result}")
+
+            except Exception as e:
+                logger.error(f"变更检测失败: {e}")
+                # 变更检测失败不影响上传流程
+                change_detection_result = {
+                    "status": "error",
+                    "error": str(e)
+                }
+
+        response = {
             "message": "Document uploaded successfully",
             "document_id": main_document.id,  # 主文档ID
             "document_chunk_ids": document_chunk_ids,  # 所有分块ID
@@ -271,6 +375,11 @@ async def upload_document(
             "chunks_created": len(document_chunk_ids),
             "total_chunks": len(text_chunks)
         }
+
+        if change_detection_result:
+            response["change_detection"] = change_detection_result
+
+        return response
 
     except HTTPException:
         raise

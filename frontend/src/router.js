@@ -60,6 +60,16 @@ const routes = [
     }
   },
   {
+    path: '/index-management',
+    name: 'IndexManagement',
+    component: () => import('./views/IndexManagement.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '索引管理',
+      permissions: ['document_write']
+    }
+  },
+  {
     path: '/history',
     name: 'History',
     component: () => import('./views/History.vue'),

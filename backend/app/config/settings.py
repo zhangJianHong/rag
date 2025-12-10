@@ -50,6 +50,15 @@ RERANKER_MAX_LENGTH = int(os.getenv("RERANKER_MAX_LENGTH", "512"))
 RERANKER_BATCH_SIZE = int(os.getenv("RERANKER_BATCH_SIZE", "32"))
 RERANKER_DEVICE = os.getenv("RERANKER_DEVICE", "auto")  # auto, cpu, cuda
 
+# Redis配置 (用于Celery)
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "admin!redis123")
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+
+# Celery配置
+CELERY_ENABLED = os.getenv("CELERY_ENABLED", "true").lower() == "true"
+
 # 验证必要的环境变量
 def validate_config():
     """验证配置是否完整"""

@@ -74,6 +74,7 @@
                   :min="1"
                   :max="50"
                   :step="5"
+                  class="number-input-fix"
                 />
               </div>
 
@@ -184,13 +185,20 @@ const handleCommand = (command) => {
 </script>
 
 <style lang="scss" scoped>
-// 全局覆盖数字输入框样式
+// 全局覆盖数字输入框样式 - 使用硬编码颜色确保可见性
 :deep(.el-input-number) {
   .el-input__wrapper {
     .el-input__inner {
-      color: var(--tech-text-primary) !important;
-      -webkit-text-fill-color: var(--tech-text-primary) !important;
+      color: #f3f4f6 !important;
+      -webkit-text-fill-color: #f3f4f6 !important;
     }
+  }
+}
+
+:deep(.number-input-fix) {
+  input {
+    color: #f3f4f6 !important;
+    -webkit-text-fill-color: #f3f4f6 !important;
   }
 }
 
@@ -353,8 +361,12 @@ const handleCommand = (command) => {
         // 覆盖数字输入框的文字颜色
         :deep(.el-input-number) {
           .el-input__wrapper {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--tech-glass-border);
+
             .el-input__inner {
               color: var(--tech-text-primary) !important;
+              background: transparent;
             }
           }
 
@@ -367,6 +379,16 @@ const handleCommand = (command) => {
             &:hover {
               background: rgba(255, 255, 255, 0.08);
               color: var(--tech-text-primary);
+            }
+          }
+        }
+
+        // 针对添加了class的数字输入框
+        :deep(.number-input-fix) {
+          .el-input__wrapper {
+            .el-input__inner {
+              color: #f3f4f6 !important;
+              -webkit-text-fill-color: #f3f4f6 !important;
             }
           }
         }

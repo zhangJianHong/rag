@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from prometheus_client import make_asgi_app
-from app.routers import documents, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains, classification, query_v2, performance, websocket
+from app.routers import documents, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains, classification, query_v2, performance, websocket, document_index
 from app.config.logging_config import setup_logging, get_app_logger
 from app.middleware.logging_middleware import LoggingMiddleware, ErrorLoggingMiddleware, PerformanceLoggingMiddleware
 from app.config.settings import validate_config
@@ -58,6 +58,11 @@ async def startup_event():
         # 创建知识领域表
         KnowledgeDomainBase.metadata.create_all(bind=engine)
         logger.info("Knowledge domain tables initialized successfully")
+
+        # 创建索引记录表
+        from app.models.index_record import Base as IndexRecordBase
+        IndexRecordBase.metadata.create_all(bind=engine)
+        logger.info("Index record tables initialized successfully")
 
         # 初始化 Reranker 模型 (如果启用)
         from app.config.settings import ENABLE_RERANK
@@ -137,6 +142,9 @@ app.include_router(performance.router, prefix="/api", tags=["性能监控"])
 
 # 注册WebSocket路由
 app.include_router(websocket.router, tags=["WebSocket"])
+
+# 注册文档索引管理路由
+app.include_router(document_index.router, prefix="/api", tags=["文档索引"])
 
 # 添加 Prometheus metrics 端点
 metrics_app = make_asgi_app()

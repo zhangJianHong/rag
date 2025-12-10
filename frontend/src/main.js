@@ -1,3 +1,7 @@
+// 尽早应用主题，防止闪白
+import { getTheme, applyTheme } from './utils/themeManager'
+applyTheme(getTheme())
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
@@ -23,7 +27,7 @@ app.use(pinia)
 app.use(router)
 app.use(ElementPlus)
 
-// 初始化主题
+// 再次初始化主题（确保所有样式已加载）
 initTheme()
 
 // 初始化认证状态
