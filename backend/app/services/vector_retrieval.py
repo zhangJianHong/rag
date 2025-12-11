@@ -29,7 +29,8 @@ class VectorRetrievalService:
         top_k: int = 5,
         similarity_threshold: float = 0.0,
         document_ids: Optional[List[int]] = None,
-        filename_filter: Optional[str] = None
+        filename_filter: Optional[str] = None,
+        namespace: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         通用的文档块检索方法
@@ -41,6 +42,7 @@ class VectorRetrievalService:
             similarity_threshold: 相似度阈值
             document_ids: 可选的文档ID过滤
             filename_filter: 可选的文件名过滤
+            namespace: 可选的知识领域过滤
 
         Returns:
             List[Dict]: 相关文档块列表，包含相似度分数
@@ -62,12 +64,16 @@ class VectorRetrievalService:
                 conditions.append("filename ILIKE :filename_filter")
                 params["filename_filter"] = f"%{filename_filter}%"
 
+            if namespace:
+                conditions.append("namespace = :namespace")
+                params["namespace"] = namespace
+
             where_clause = " AND ".join(conditions)
 
             # 3. 从数据库获取文档块
             query_sql = f"""
                 SELECT id, document_id, chunk_index, content, filename,
-                       chunk_metadata, created_at, embedding
+                       chunk_metadata, created_at, embedding, namespace
                 FROM document_chunks
                 WHERE {where_clause}
                 ORDER BY document_id, chunk_index
@@ -77,6 +83,19 @@ class VectorRetrievalService:
             chunks_with_embeddings = []
 
             for row in result:
+                # 处理 embedding 字段 - 可能是字符串格式
+                embedding = row.embedding
+                if isinstance(embedding, str):
+                    try:
+                        import json
+                        embedding = json.loads(embedding)
+                    except:
+                        try:
+                            embedding = eval(embedding)
+                        except:
+                            logger.warning(f"无法解析文档块 {row.id} 的 embedding")
+                            embedding = None
+
                 chunks_with_embeddings.append({
                     "id": row.id,
                     "document_id": row.document_id,
@@ -85,7 +104,8 @@ class VectorRetrievalService:
                     "filename": row.filename,
                     "metadata": row.chunk_metadata,
                     "created_at": row.created_at,
-                    "embedding": row.embedding
+                    "embedding": embedding,
+                    "namespace": row.namespace if hasattr(row, 'namespace') else 'default'
                 })
 
             if not chunks_with_embeddings:
@@ -117,11 +137,6 @@ class VectorRetrievalService:
             similarity_pairs = []
             for i, (chunk_idx, chunk_data) in enumerate(valid_chunks):
                 similarity_pairs.append((chunk_idx, similarities[i]))
-
-
-            euclidean=   embedding_service.euclidean_distance(query_embedding, valid_embeddings)
-            logger.info(f"计算欧式距离完成, 距离：{euclidean}")
-                
 
             if not similarity_pairs:
                 logger.warning("没有有效的相似度计算结果")
@@ -227,6 +242,40 @@ class VectorRetrievalService:
         except Exception as e:
             logger.error(f"文档检索失败: {e}")
             return []
+
+    async def search_by_namespace(
+        self,
+        db: Session,
+        query_text: str,
+        namespace: str,
+        top_k: int = 10,
+        similarity_threshold: float = 0.0
+    ) -> List[Dict[str, Any]]:
+        """
+        在指定领域内进行向量检索
+
+        Args:
+            db: 数据库会话
+            query_text: 查询文本
+            namespace: 领域命名空间
+            top_k: 返回结果数量
+            similarity_threshold: 相似度阈值
+
+        Returns:
+            List[Dict]: 排序后的文档块
+        """
+        logger.info(f"在领域 '{namespace}' 内检索: {query_text}")
+
+        results = await self.search_chunks(
+            db=db,
+            query_text=query_text,
+            top_k=top_k,
+            similarity_threshold=similarity_threshold,
+            namespace=namespace
+        )
+
+        logger.info(f"领域 '{namespace}' 检索完成,返回 {len(results)} 个结果")
+        return results
 
     async def hybrid_search(
         self,

@@ -14,6 +14,7 @@
           {{ Math.abs(trend) }}%
         </span>
       </div>
+      <div v-if="subtitle" class="stats-subtitle">{{ subtitle }}</div>
     </div>
     <div class="stats-bg"></div>
   </div>
@@ -31,7 +32,8 @@ const props = defineProps({
     type: String,
     default: 'blue'
   },
-  trend: Number
+  trend: Number,
+  subtitle: String
 })
 
 const formattedValue = computed(() => {
@@ -98,6 +100,12 @@ const formattedValue = computed(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .stats-subtitle {
+    font-size: 11px;
+    color: var(--tech-text-muted);
+    margin-top: 4px;
   }
 
   .stats-value {

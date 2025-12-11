@@ -7,6 +7,7 @@
         :key="index"
         :message="message"
         :is-last="index === messages.length - 1"
+        @regenerate="handleRegenerate"
       />
 
       <!-- 加载中状态 -->
@@ -59,7 +60,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['use-prompt'])
+const emit = defineEmits(['use-prompt', 'regenerate'])
 
 const scrollContainer = ref(null)
 
@@ -82,6 +83,11 @@ watch(() => props.messages, async () => {
   await nextTick()
   scrollToBottom()
 }, { deep: true })
+
+// 处理重新生成
+const handleRegenerate = (message) => {
+  emit('regenerate', message)
+}
 
 // 暴露方法给父组件
 defineExpose({

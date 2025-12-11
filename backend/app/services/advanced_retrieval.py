@@ -54,15 +54,29 @@ class AdvancedRetrievalService:
             document_embeddings = []
             
             for row in result:
+                # 处理 embedding 字段 - 可能是字符串格式
+                embedding = row.embedding
+                if isinstance(embedding, str):
+                    try:
+                        import json
+                        embedding = json.loads(embedding)
+                    except:
+                        try:
+                            embedding = eval(embedding)
+                        except:
+                            logger.warning(f"无法解析文档 {row.id} 的 embedding")
+                            embedding = None
+
                 documents.append({
                     "id": row.id,
                     "content": row.content,
                     "filename": row.filename,
                     "metadata": row.doc_metadata,
                     "created_at": row.created_at,
-                    "embedding": row.embedding
+                    "embedding": embedding
                 })
-                document_embeddings.append(row.embedding)
+                if embedding is not None:
+                    document_embeddings.append(embedding)
             
             if not documents:
                 logger.info("没有找到任何文档")
@@ -164,6 +178,19 @@ class AdvancedRetrievalService:
             chunks_with_embeddings = []
 
             for row in result:
+                # 处理 embedding 字段 - 可能是字符串格式
+                embedding = row.embedding
+                if isinstance(embedding, str):
+                    try:
+                        import json
+                        embedding = json.loads(embedding)
+                    except:
+                        try:
+                            embedding = eval(embedding)
+                        except:
+                            logger.warning(f"无法解析文档块 {row.id} 的 embedding")
+                            continue  # 跳过无法解析的块
+
                 chunks_with_embeddings.append({
                     "id": row.id,
                     "doc_id": row.document_id,
@@ -172,7 +199,7 @@ class AdvancedRetrievalService:
                     "filename": row.filename,
                     "metadata": row.chunk_metadata,
                     "created_at": row.created_at,
-                    "embedding": row.embedding  # 直接使用预计算好的向量
+                    "embedding": embedding  # 使用转换后的向量
                 })
 
             if not chunks_with_embeddings:

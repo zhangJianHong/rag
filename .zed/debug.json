@@ -1,0 +1,16 @@
+[
+  {
+    "label": "Python Active File",
+    "adapter": "Debugpy",
+    "program": "$ZED_WORKTREE_ROOT/backend/app/main.py",
+    "request": "launch",
+    "console": "integratedTerminal",
+    "cwd": "$ZED_WORKTREE_ROOT/backend",
+    "args": ["--debug", "--port", "8800"],
+    "env": {
+      "PYTHONPATH": "$ZED_WORKTREE_ROOT/backend",
+      "no_proxy": "localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,::1"
+    },
+    "python": "/home/zhangjh/code/python/venv/bin/python"
+  }
+]

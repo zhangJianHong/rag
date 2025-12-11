@@ -197,8 +197,8 @@ class EmbeddingService:
                   1表示完全相似，0表示无关，-1表示完全相反
         """
         try:
-            vec1 = np.array(vec1)
-            vec2 = np.array(vec2)
+            vec1 = np.array(vec1).tolist()
+            vec2 = np.array(vec2).tolist()
 
             # 计算余弦相似度
             dot_product = np.dot(vec1, vec2)
@@ -227,8 +227,30 @@ class EmbeddingService:
             List[float]: 相似度分数列表
         """
         try:
-            query_vec = np.array(query_vec)
-            candidates = np.array(candidate_vectors)
+            # 转换查询向量
+            query_vec = np.array(query_vec, dtype=float).tolist()
+
+            # 处理候选向量 - 可能是字符串格式
+            processed_candidates = []
+            for vec in candidate_vectors:
+                if isinstance(vec, str):
+                    # 如果是字符串,尝试解析为列表
+                    try:
+                        import json
+                        vec = json.loads(vec)
+                    except:
+                        # 如果JSON解析失败,尝试eval
+                        try:
+                            vec = eval(vec)
+                        except:
+                            logger.warning(f"无法解析向量字符串: {vec[:100]}...")
+                            continue
+                processed_candidates.append(vec)
+
+            if not processed_candidates:
+                return []
+
+            candidates = np.array(processed_candidates, dtype=float)
 
             if len(candidates) == 0:
                 return []
@@ -260,18 +282,49 @@ class EmbeddingService:
     def euclidean_distance(self, vec1: List[float], vec2: List[float]) -> float:
         """
         计算两个向量之间的欧几里得距离
-        
+
         Args:
             vec1 (List[float]): 第一个向量
-            vec2 (List[float]): 第二个向量
-            
+            vec2 (List[float]): 第二个向量 (或向量列表)
+
         Returns:
             float: 欧几里得距离
         """
         try:
-            vec1 = np.array(vec1)
-            vec2 = np.array(vec2)
-            return float(np.linalg.norm(vec1 - vec2))
+            # 处理字符串格式的向量
+            if isinstance(vec1, str):
+                try:
+                    import json
+                    vec1 = json.loads(vec1)
+                except:
+                    vec1 = eval(vec1)
+
+            if isinstance(vec2, str):
+                try:
+                    import json
+                    vec2 = json.loads(vec2)
+                except:
+                    vec2 = eval(vec2)
+
+            # 如果vec2是向量列表,只取第一个
+            if isinstance(vec2, list):
+                if len(vec2) == 0:
+                    logger.warning("vec2是空列表,无法计算距离")
+                    return float('inf')
+                # 如果是嵌套列表(向量列表),取第一个向量
+                if isinstance(vec2[0], (list, str)):
+                    vec2 = vec2[0]
+                    # 如果是字符串,再次转换
+                    if isinstance(vec2, str):
+                        try:
+                            import json
+                            vec2 = json.loads(vec2)
+                        except:
+                            vec2 = eval(vec2)
+
+            vec1_arr = np.array(vec1, dtype=float)
+            vec2_arr = np.array(vec2, dtype=float)
+            return float(np.linalg.norm(vec1_arr - vec2_arr))
         except Exception as e:
             logger.error(f"计算欧几里得距离失败: {e}")
             return float('inf')

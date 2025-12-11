@@ -1,10 +1,12 @@
-// 科技感主题变量定义
-:root {
+// ========== 科技感主题 (默认) ==========
+:root,
+[data-theme="tech"] {
   // 主色调 - 深色背景
   --tech-bg-primary: #0a0e1a;
   --tech-bg-secondary: #111827;
   --tech-bg-tertiary: #1a1f2e;
   --tech-bg-card: rgba(17, 24, 39, 0.6);
+  --tech-dark-secondary: #1a1f2e;
 
   // 霓虹色系
   --tech-neon-blue: #00d4ff;
@@ -52,6 +54,89 @@
   --tech-radius-md: 8px;
   --tech-radius-lg: 12px;
   --tech-radius-xl: 16px;
+
+  // 网格背景可见性
+  --tech-grid-opacity: 0.3;
+}
+
+// ========== 暗黑主题 ==========
+[data-theme="dark"] {
+  --tech-bg-primary: #121212;
+  --tech-bg-secondary: #1e1e1e;
+  --tech-bg-tertiary: #2d2d2d;
+  --tech-bg-card: rgba(30, 30, 30, 0.8);
+  --tech-dark-secondary: #2d2d2d;
+
+  --tech-neon-blue: #64b5f6;
+  --tech-neon-purple: #ba68c8;
+  --tech-neon-pink: #f06292;
+  --tech-neon-green: #81c784;
+  --tech-neon-yellow: #ffd54f;
+
+  --tech-gradient-primary: linear-gradient(135deg, #424242 0%, #616161 100%);
+  --tech-gradient-secondary: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
+  --tech-gradient-accent: linear-gradient(135deg, #ce93d8 0%, #ba68c8 100%);
+  --tech-gradient-mesh: linear-gradient(135deg, rgba(100, 181, 246, 0.1) 0%, rgba(186, 104, 200, 0.1) 100%);
+
+  --tech-text-primary: #e0e0e0;
+  --tech-text-secondary: #9e9e9e;
+  --tech-text-muted: #757575;
+  --tech-text-accent: var(--tech-neon-blue);
+
+  --tech-border-color: rgba(255, 255, 255, 0.12);
+  --tech-border-hover: rgba(255, 255, 255, 0.24);
+  --tech-border-glow: 0 0 15px rgba(100, 181, 246, 0.4);
+
+  --tech-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.5);
+  --tech-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.6);
+  --tech-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.7);
+  --tech-shadow-glow: 0 0 20px rgba(100, 181, 246, 0.2);
+  --tech-shadow-neon: 0 0 30px rgba(186, 104, 200, 0.3);
+
+  --tech-glass-bg: rgba(255, 255, 255, 0.05);
+  --tech-glass-border: rgba(255, 255, 255, 0.08);
+
+  --tech-grid-opacity: 0;
+}
+
+// ========== 明亮主题 ==========
+[data-theme="light"] {
+  --tech-bg-primary: #f5f5f5;
+  --tech-bg-secondary: #ffffff;
+  --tech-bg-tertiary: #fafafa;
+  --tech-bg-card: rgba(255, 255, 255, 0.9);
+  --tech-dark-secondary: #f0f0f0;
+
+  --tech-neon-blue: #1976d2;
+  --tech-neon-purple: #7b1fa2;
+  --tech-neon-pink: #c2185b;
+  --tech-neon-green: #388e3c;
+  --tech-neon-yellow: #f57c00;
+
+  --tech-gradient-primary: linear-gradient(135deg, #1976d2 0%, #7b1fa2 100%);
+  --tech-gradient-secondary: linear-gradient(135deg, #42a5f5 0%, #1976d2 100%);
+  --tech-gradient-accent: linear-gradient(135deg, #f48fb1 0%, #c2185b 100%);
+  --tech-gradient-mesh: linear-gradient(135deg, rgba(25, 118, 210, 0.05) 0%, rgba(123, 31, 162, 0.05) 100%);
+
+  --tech-text-primary: #212121;
+  --tech-text-secondary: #616161;
+  --tech-text-muted: #9e9e9e;
+  --tech-text-accent: var(--tech-neon-blue);
+
+  --tech-border-color: rgba(0, 0, 0, 0.12);
+  --tech-border-hover: rgba(0, 0, 0, 0.24);
+  --tech-border-glow: 0 0 15px rgba(25, 118, 210, 0.3);
+
+  --tech-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --tech-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+  --tech-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.2);
+  --tech-shadow-glow: 0 0 20px rgba(25, 118, 210, 0.15);
+  --tech-shadow-neon: 0 0 30px rgba(123, 31, 162, 0.2);
+
+  --tech-glass-bg: rgba(255, 255, 255, 0.8);
+  --tech-glass-border: rgba(0, 0, 0, 0.08);
+
+  --tech-grid-opacity: 0.1;
 }
 
 // 玻璃拟态混入
@@ -136,7 +221,8 @@
     linear-gradient(90deg, rgba(0, 212, 255, 0.1) 1px, transparent 1px);
   background-size: 50px 50px;
   z-index: -1;
-  opacity: 0.3;
+  opacity: var(--tech-grid-opacity, 0.3);
+  transition: opacity 0.3s ease;
 }
 
 // 粒子效果容器
@@ -148,4 +234,28 @@
   height: 100%;
   z-index: -1;
   pointer-events: none;
+}
+
+// Element Plus 数字输入框文字颜色修复 - 使用硬编码颜色确保可见性
+.el-input-number .el-input__inner,
+.el-input .el-input__inner,
+.el-input-number .el-input__wrapper .el-input__inner,
+.el-input__wrapper .el-input__inner {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6 !important;
+}
+
+// 覆盖所有可能的输入框样式
+input.el-input__inner {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6 !important;
+}
+
+// Element Plus Dropdown和Popper中的输入框
+.el-popper .el-input-number .el-input__inner,
+.el-popper .el-input .el-input__inner,
+.el-dropdown-menu .el-input-number .el-input__inner,
+.el-dropdown-menu .el-input .el-input__inner {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6 !important;
 }

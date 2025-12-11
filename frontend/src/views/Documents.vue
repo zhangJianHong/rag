@@ -121,6 +121,16 @@
                   <span>{{ formatDate(document.uploadTime) }}</span>
                 </p>
               </div>
+              <!-- 领域标签 -->
+              <div class="document-domain" v-if="document.namespace">
+                <el-tag
+                  size="small"
+                  :type="document.namespace === 'default' ? 'info' : 'primary'"
+                  effect="plain"
+                >
+                  {{ getDomainInfo(document.namespace).icon }} {{ getDomainInfo(document.namespace).display_name }}
+                </el-tag>
+              </div>
               <div class="document-tags" v-if="document.tags && document.tags.length > 0">
                 <el-tag
                   v-for="(tag, tagIndex) in document.tags"
@@ -130,6 +140,33 @@
                 >
                   {{ tag }}
                 </el-tag>
+              </div>
+              <!-- 快捷操作按钮 -->
+              <div class="document-actions" @click.stop>
+                <el-button
+                  size="small"
+                  type="text"
+                  @click="handlePreviewDocument(document)"
+                  title="预览"
+                >
+                  <el-icon><View /></el-icon>
+                </el-button>
+                <el-button
+                  size="small"
+                  type="text"
+                  @click="downloadDocument(document)"
+                  title="下载"
+                >
+                  <el-icon><Download /></el-icon>
+                </el-button>
+                <el-button
+                  size="small"
+                  type="text"
+                  @click="deleteDocument(document)"
+                  title="删除"
+                >
+                  <el-icon><Delete /></el-icon>
+                </el-button>
               </div>
             </template>
 
@@ -152,10 +189,20 @@
                     <span>{{ formatDate(document.uploadTime) }}</span>
                     <span>•</span>
                     <span>{{ document.type.toUpperCase() }}</span>
+                    <span v-if="document.namespace">•</span>
+                    <el-tag
+                      v-if="document.namespace"
+                      size="small"
+                      :type="document.namespace === 'default' ? 'info' : 'primary'"
+                      effect="plain"
+                      style="margin-left: 4px;"
+                    >
+                      {{ getDomainInfo(document.namespace).icon }} {{ getDomainInfo(document.namespace).display_name }}
+                    </el-tag>
                   </div>
                 </div>
                 <div class="document-actions">
-                  <el-button size="small" type="text" @click="previewDocument(document)">
+                  <el-button size="small" type="text" @click="handlePreviewDocument(document)">
                     <el-icon><View /></el-icon>
                   </el-button>
                   <el-button size="small" type="text" @click="downloadDocument(document)">
@@ -230,6 +277,22 @@
               <span class="info-label">文件大小:</span>
               <span class="info-value">{{ formatFileSize(selectedDocument.size) }}</span>
             </div>
+            <div class="info-item" v-if="selectedDocument.namespace">
+              <span class="info-label">知识领域:</span>
+              <span class="info-value">
+                <el-tag
+                  size="small"
+                  :type="selectedDocument.namespace === 'default' ? 'info' : 'primary'"
+                  effect="plain"
+                >
+                  {{ getDomainInfo(selectedDocument.namespace).icon }} {{ getDomainInfo(selectedDocument.namespace).display_name }}
+                </el-tag>
+              </span>
+            </div>
+            <div class="info-item" v-if="selectedDocument.domainConfidence > 0">
+              <span class="info-label">分类置信度:</span>
+              <span class="info-value">{{ (selectedDocument.domainConfidence * 100).toFixed(1) }}%</span>
+            </div>
           </div>
 
           <!-- 标签管理 -->
@@ -267,7 +330,7 @@
           <div class="info-section">
             <h4>操作</h4>
             <div class="action-buttons">
-              <el-button type="primary" @click="previewDocument(selectedDocument)">
+              <el-button type="primary" @click="handlePreviewDocument(selectedDocument)">
                 <el-icon><View /></el-icon>
                 预览
               </el-button>
@@ -307,6 +370,21 @@
           <h4>已选择文件 ({{ selectedFiles.length }})</h4>
           <el-button size="small" @click="clearSelectedFiles">重新选择</el-button>
         </div>
+
+        <!-- 领域选择 -->
+        <div class="domain-selection">
+          <label class="domain-label">知识领域:</label>
+          <domain-selector
+            v-model="selectedDomain"
+            placeholder="选择知识领域 (可选)"
+            clearable
+            show-stats
+          />
+          <div class="domain-tip">
+            选择领域后,文档将自动归类到对应的知识领域,便于精准检索
+          </div>
+        </div>
+
         <div class="file-list">
           <div v-for="(file, index) in selectedFiles" :key="index" class="file-item">
             <div class="file-info">
@@ -360,6 +438,58 @@
         </div>
       </template>
     </el-dialog>
+
+    <!-- 文档预览对话框 -->
+    <el-dialog
+      v-model="showPreviewDialog"
+      :title="`预览: ${previewDocument?.filename || ''}`"
+      width="70%"
+      top="5vh"
+      destroy-on-close
+    >
+      <div v-if="previewLoading" class="preview-loading">
+        <el-skeleton :rows="10" animated />
+      </div>
+      <div v-else-if="previewDocument" class="preview-content">
+        <div class="preview-header">
+          <div class="preview-info">
+            <span class="info-label">文件名:</span>
+            <span class="info-value">{{ previewDocument.filename }}</span>
+          </div>
+          <div class="preview-info">
+            <span class="info-label">文件类型:</span>
+            <span class="info-value">{{ previewDocument.filename?.split('.').pop()?.toUpperCase() || 'TXT' }}</span>
+          </div>
+          <div class="preview-info" v-if="previewDocument.created_at">
+            <span class="info-label">上传时间:</span>
+            <span class="info-value">{{ formatDate(new Date(previewDocument.created_at)) }}</span>
+          </div>
+          <div class="preview-info" v-if="previewDocument.namespace">
+            <span class="info-label">知识领域:</span>
+            <el-tag
+              size="small"
+              :type="previewDocument.namespace === 'default' ? 'info' : 'primary'"
+              effect="plain"
+            >
+              {{ getDomainInfo(previewDocument.namespace).icon }} {{ getDomainInfo(previewDocument.namespace).display_name }}
+            </el-tag>
+          </div>
+        </div>
+        <el-divider />
+        <div class="preview-text">
+          <pre>{{ previewDocument.content || '暂无内容' }}</pre>
+        </div>
+      </div>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="showPreviewDialog = false">关闭</el-button>
+          <el-button type="primary" @click="downloadPreviewDocument">
+            <el-icon><Download /></el-icon>
+            下载
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -368,6 +498,8 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRagStore } from '../store/ragStore'
 import documentService from '../services/documentService'
+import DomainSelector from '../components/domain/DomainSelector.vue'
+import { getActiveDomains } from '../services/knowledgeDomains'
 import {
   Search, Upload, Folder, Grid, List, View, Download, Delete, Close,
   Plus, Document, UploadFilled
@@ -393,6 +525,10 @@ const showFullContent = ref(false)
 const selectedFiles = ref([])
 const uploading = ref(false)
 const fileInput = ref(null)
+const selectedDomain = ref('default') // 添加领域选择
+const showPreviewDialog = ref(false) // 预览对话框显示状态
+const previewDocument = ref(null) // 预览的文档对象
+const previewLoading = ref(false) // 预览加载状态
 
 // 真实数据
 const documents = ref([])
@@ -401,22 +537,43 @@ const documentStats = ref({
   byType: {},
   recent: 0
 })
+const domainList = ref([]) // 知识领域列表
 
 const folders = computed(() => {
-  const byType = documentStats.value.byType || {}
-  // 确保所有键都是字符串格式
-  const pdfCount = byType['pdf'] || byType.pdf || 0
-  const txtCount = byType['txt'] || byType.txt || 0
+  // 统计每个领域的文档数量
+  const domainCounts = {}
+  documents.value.forEach(doc => {
+    const namespace = doc.namespace || 'default'
+    domainCounts[namespace] = (domainCounts[namespace] || 0) + 1
+  })
 
-  return [
-    { id: 'all', name: '全部知识', count: documentStats.value.total || 0 },
-    { id: 'recent', name: '最近上传', count: documentStats.value.recent || 0 },
-    { id: 'pdf', name: 'PDF文档', count: pdfCount },
-    { id: 'txt', name: '文本文档', count: txtCount },
-    { id: 'chunks', name: '知识块', count: documents.value.filter(doc => doc.chunkIndex !== undefined).length },
-    { id: 'favorites', name: '收藏夹', count: 0 }, // TODO: 实现收藏功能
-    { id: 'trash', name: '回收站', count: 0 }
+  // 构建文件夹列表
+  const folderList = [
+    { id: 'all', name: '📚 全部文档', count: documents.value.length },
+    { id: 'recent', name: '🕒 最近上传', count: documentStats.value.recent || 0 }
   ]
+
+  // 添加领域分类
+  domainList.value.forEach(domain => {
+    folderList.push({
+      id: domain.namespace,
+      name: `${domain.icon || '📁'} ${domain.display_name}`,
+      count: domainCounts[domain.namespace] || 0,
+      isDomain: true
+    })
+  })
+
+  // 添加默认领域(未分类)
+  if (domainCounts['default']) {
+    folderList.push({
+      id: 'default',
+      name: '📁 未分类',
+      count: domainCounts['default'] || 0,
+      isDomain: true
+    })
+  }
+
+  return folderList
 })
 
 const tags = computed(() => {
@@ -443,10 +600,12 @@ const filteredDocuments = computed(() => {
 
   // 搜索过滤
   if (searchQuery.value) {
-    filtered = filtered.filter(doc =>
-      doc.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      doc.content.toLowerCase().includes(searchQuery.value.toLowerCase())
-    )
+    filtered = filtered.filter(doc => {
+      const name = doc.filename || '未命名文档'
+      const content = doc.content || ''
+      const query = searchQuery.value.toLowerCase()
+      return name.toLowerCase().includes(query) || content.toLowerCase().includes(query)
+    })
   }
 
   // 文件夹过滤
@@ -455,16 +614,9 @@ const filteredDocuments = computed(() => {
       switch (selectedFolder.value) {
         case 'recent':
           return (Date.now() - doc.uploadTime.getTime()) < 7 * 24 * 60 * 60 * 1000
-        case 'pdf':
-          return doc.type === 'pdf'
-        case 'txt':
-          return doc.type === 'txt'
-        case 'chunks':
-          return doc.chunkIndex !== undefined
-        case 'favorites':
-          return doc.tags.includes('重要')
         default:
-          return true
+          // 按领域过滤
+          return (doc.namespace || 'default') === selectedFolder.value
       }
     })
   }
@@ -672,16 +824,104 @@ const closeUploadDialog = () => {
   uploading.value = false
 }
 
-const previewDocument = (doc) => {
-  ElMessage.info(`预览文档: ${doc.name}`)
+const handlePreviewDocument = async (doc) => {
+  try {
+    previewLoading.value = true
+    showPreviewDialog.value = true
+
+    // 获取完整文档内容
+    const fullDoc = await documentService.getDocument(doc.id)
+    previewDocument.value = fullDoc
+  } catch (error) {
+    console.error('获取文档详情失败:', error)
+    ElMessage.error('获取文档详情失败：' + (error.message || '未知错误'))
+    showPreviewDialog.value = false
+  } finally {
+    previewLoading.value = false
+  }
 }
 
-const downloadDocument = (doc) => {
-  ElMessage.success(`下载文档: ${doc.name}`)
+// 下载预览中的文档
+const downloadPreviewDocument = async () => {
+  if (!previewDocument.value) return
+
+  try {
+    const success = await documentService.downloadDocument(
+      previewDocument.value.id,
+      previewDocument.value.filename
+    )
+
+    if (success) {
+      ElMessage.success(`文档 "${previewDocument.value.filename}" 已导出`)
+    } else {
+      ElMessage.error('下载失败，请稍后重试')
+    }
+  } catch (error) {
+    console.error('下载文档失败:', error)
+    ElMessage.error('下载失败：' + (error.message || '未知错误'))
+  }
 }
 
-const deleteDocument = (doc) => {
-  ElMessage.warning(`删除文档: ${doc.name}`)
+const downloadDocument = async (doc) => {
+  try {
+    loading.value = true
+    const success = await documentService.downloadDocument(doc.id, doc.name)
+
+    if (success) {
+      ElMessage.success(`文档 "${doc.name}" 已导出`)
+    } else {
+      ElMessage.error('下载失败，请稍后重试')
+    }
+  } catch (error) {
+    console.error('下载文档失败:', error)
+    ElMessage.error('下载失败：' + (error.message || '未知错误'))
+  } finally {
+    loading.value = false
+  }
+}
+
+const deleteDocument = async (doc) => {
+  try {
+    // 二次确认
+    await ElMessageBox.confirm(
+      `确定要删除文档 "${doc.name}" 吗？此操作不可撤销。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+
+    loading.value = true
+    const success = await documentService.deleteDocument(doc.id)
+
+    if (success) {
+      ElMessage.success(`文档 "${doc.name}" 已删除`)
+
+      // 关闭侧边栏如果删除的是当前选中的文档
+      if (selectedDocument.value?.id === doc.id) {
+        selectedDocument.value = null
+        detailVisible.value = false
+      }
+
+      // 重新加载文档列表
+      await loadDocuments()
+    } else {
+      ElMessage.error('删除失败，请稍后重试')
+    }
+  } catch (error) {
+    // 用户取消删除
+    if (error === 'cancel') {
+      return
+    }
+
+    console.error('删除文档失败:', error)
+    ElMessage.error('删除失败：' + (error.message || '未知错误'))
+  } finally {
+    loading.value = false
+  }
 }
 
 const addTag = () => {
@@ -708,7 +948,36 @@ const handleSearch = async () => {
     loading.value = true
     try {
       const results = await documentService.searchDocuments(searchQuery.value)
-      documents.value = results
+      documents.value =  results.map(doc => {
+      // metadata可能是字符串或对象
+      let metadata = {}
+      if (typeof doc.metadata === 'string') {
+        try {
+          metadata = JSON.parse(doc.metadata)
+        } catch (e) {
+          metadata = {}
+        }
+      } else {
+        metadata = doc.metadata || {}
+      }
+
+      return {
+        id: String(doc.id), // 确保ID是字符串
+        name: doc.filename || '未命名文档',
+        content: doc.content || '',
+        size: metadata.size || 0,
+        type: metadata.type || 'txt',
+        uploadTime: doc.created_at ? new Date(doc.created_at) : new Date(),
+        status: 'indexed', // 假设已索引
+        tags: metadata.tags || [],
+        pageCount: metadata.pageCount || null,
+        chunkIndex: metadata.chunk_index,
+        totalChunks: metadata.total_chunks,
+        namespace: doc.namespace || 'default', // 添加领域信息
+        domainTags: doc.domain_tags || {},
+        domainConfidence: doc.domain_confidence || 0
+      }
+    })
     } catch (error) {
       console.error('搜索失败:', error)
       ElMessage.error('搜索失败，请稍后重试')
@@ -742,16 +1011,19 @@ const loadDocuments = async () => {
 
       return {
         id: String(doc.id), // 确保ID是字符串
-        name: doc.filename,
-        content: doc.content,
+        name: doc.filename || '未命名文档',
+        content: doc.content || '',
         size: metadata.size || 0,
         type: metadata.type || 'txt',
-        uploadTime: new Date(doc.created_at),
+        uploadTime: doc.created_at ? new Date(doc.created_at) : new Date(),
         status: 'indexed', // 假设已索引
         tags: metadata.tags || [],
         pageCount: metadata.pageCount || null,
         chunkIndex: metadata.chunk_index,
-        totalChunks: metadata.total_chunks
+        totalChunks: metadata.total_chunks,
+        namespace: doc.namespace || 'default', // 添加领域信息
+        domainTags: doc.domain_tags || {},
+        domainConfidence: doc.domain_confidence || 0
       }
     })
 
@@ -791,9 +1063,11 @@ const handleFileUpload = async (files) => {
 
   const validFiles = files.filter(file => {
     const isValidType = file.name.toLowerCase().endsWith('.pdf') ||
-                      file.name.toLowerCase().endsWith('.txt')
+                      file.name.toLowerCase().endsWith('.txt') ||
+                      file.name.toLowerCase().endsWith('.doc') ||
+                      file.name.toLowerCase().endsWith('.docx')
     if (!isValidType) {
-      ElMessage.warning(`文件 ${file.name} 不是支持的格式，仅支持PDF和TXT文件`)
+      ElMessage.warning(`文件 ${file.name} 不是支持的格式，仅支持PDF、TXT、DOC和DOCX文件`)
       return false
     }
     if (file.size > 10 * 1024 * 1024) { // 10MB
@@ -814,7 +1088,8 @@ const handleFileUpload = async (files) => {
       uploadProgress.value[i] = 0
     }
 
-    await documentService.uploadDocuments(validFiles, (progress, loaded, total) => {
+    // 传递选中的领域
+    await documentService.uploadDocuments(validFiles, selectedDomain.value, (progress, loaded, total) => {
       // 找到当前正在上传的文件索引
       let currentFileIndex = 0
       let accumulatedSize = 0
@@ -828,7 +1103,7 @@ const handleFileUpload = async (files) => {
       uploadProgress.value[currentFileIndex] = progress
     })
 
-    ElMessage.success(`成功上传 ${validFiles.length} 个文档`)
+    ElMessage.success(`成功上传 ${validFiles.length} 个文档到 ${selectedDomain.value} 领域`)
     await loadDocuments() // 重新加载文档列表
 
     // 清理上传进度
@@ -844,8 +1119,31 @@ const handleFileUpload = async (files) => {
 }
 
 
-onMounted(() => {
-  loadDocuments()
+// 加载知识领域列表
+const loadDomains = async () => {
+  try {
+    domainList.value = await getActiveDomains()
+    console.log('已加载知识领域:', domainList.value.length, '个')
+  } catch (error) {
+    console.error('加载知识领域失败:', error)
+    domainList.value = []
+  }
+}
+
+// 获取领域信息
+const getDomainInfo = (namespace) => {
+  return domainList.value.find(d => d.namespace === namespace) || {
+    display_name: '未分类',
+    icon: '📁',
+    color: '#999'
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([
+    loadDocuments(),
+    loadDomains()
+  ])
 })
 </script>
 
@@ -1076,11 +1374,27 @@ onMounted(() => {
     }
   }
 
+  .document-domain {
+    margin-top: 8px;
+  }
+
   .document-tags {
     margin-top: 12px;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
+  }
+
+  .document-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  &:hover .document-actions {
+    opacity: 1;
   }
 
   .document-row {
@@ -1482,5 +1796,101 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   padding-top: 12px;
+}
+
+/* 领域选择样式 */
+.domain-selection {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--tech-glass-bg);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 8px;
+}
+
+.domain-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--tech-text-primary);
+}
+
+.domain-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--tech-text-secondary);
+  line-height: 1.5;
+}
+
+/* 预览对话框样式 */
+.preview-loading {
+  padding: 20px;
+  min-height: 400px;
+}
+
+.preview-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.preview-header {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.preview-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .info-label {
+    font-size: 12px;
+    color: var(--tech-text-secondary);
+    font-weight: 500;
+  }
+
+  .info-value {
+    font-size: 14px;
+    color: var(--tech-text-primary);
+  }
+}
+
+.preview-text {
+  background: var(--tech-bg-secondary);
+  border: 1px solid var(--tech-glass-border);
+  border-radius: 8px;
+  padding: 16px;
+  max-height: 60vh;
+  overflow-y: auto;
+
+  pre {
+    margin: 0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--tech-text-primary);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  /* 自定义滚动条 */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--tech-bg-secondary);
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--tech-glass-border);
+    border-radius: 4px;
+
+    &:hover {
+      background: var(--tech-border-hover);
+    }
+  }
 }
 </style>

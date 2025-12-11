@@ -21,12 +21,12 @@ settings = get_settings()
 class LLMService:
     """LLM服务类 - 支持多模型动态初始化"""
 
-    def __init__(self, db: Session = None):
+    def __init__(self, db: Optional[Session] = None):
         """初始化LLM服务"""
         self.db = db
         # 缓存客户端，避免重复创建
         self._clients = {}
-        self.default_model = "gpt-3.5-turbo"
+        self.default_model = "GLM-4-Flash-250414" #"gpt-3.5-turbo"
 
     def _get_client_for_model(self, model_name: str) -> tuple:
         """
@@ -53,7 +53,7 @@ class LLMService:
                 if cache_key not in self._clients:
                     if provider.lower() == "openai":
                         client = AsyncOpenAI(
-                            api_key=api_key,
+                            api_key=str(api_key),
                             base_url=base_url or os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
                         )
                     elif provider.lower() == "anthropic":
@@ -61,7 +61,7 @@ class LLMService:
                             api_key=api_key,
                             base_url=base_url or os.getenv("ANTHROPIC_API_BASE", "https://api.anthropic.com/v1")
                         )
-                    else:
+                    else:   
                         # 为其他提供商预留扩展
                         client = AsyncOpenAI(
                             api_key=api_key,
@@ -85,7 +85,7 @@ class LLMService:
     async def get_completion(
         self,
         messages: List[Dict[str, str]],
-        model: str = None,
+        model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 2000
     ) -> Dict[str, Any]:
@@ -111,9 +111,24 @@ class LLMService:
                     "tokens_used": response.usage.total_tokens,
                     "model": response.model
                 }
+            elif provider.lower() == "anthropic":
+                # Anthropic 提供商暂不支持非流式
+                raise ValueError(f"Anthropic 提供商请使用流式接口")
             else:
-                # 为其他提供商预留扩展
-                raise ValueError(f"不支持的提供商: {provider}")
+                # 其他提供商(如 custom)默认使用 OpenAI 协议
+                response = await client.chat.completions.create(
+                    model=actual_model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    stream=False
+                )
+
+                return {
+                    "content": response.choices[0].message.content,
+                    "tokens_used": response.usage.total_tokens,
+                    "model": response.model
+                }
 
         except Exception as e:
             print(f"LLM completion error: {e}")
@@ -122,7 +137,7 @@ class LLMService:
     async def stream_completion(
         self,
         messages: List[Dict[str, str]],
-        model: str = None,
+        model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: int = 2000,
         session_id: str = None,
@@ -255,19 +270,74 @@ class LLMService:
 
         return response["content"]
 
-    async def generate_session_title(self, first_message: str) -> str:
+    async def generate_session_title(self, first_message: str, model: str = None) -> str:
         """
         根据第一条消息生成会话标题
+
+        Args:
+            first_message: 用户的第一条消息
+            model: 使用的模型,默认使用当前默认模型
+
+        Returns:
+            生成的会话标题
         """
-        messages = [
-            {"role": "system", "content": "根据用户的第一条消息，生成一个简短的对话标题（不超过20字）。"},
-            {"role": "user", "content": first_message}
-        ]
+        import logging
+        logger = logging.getLogger(__name__)
 
-        response = await self.get_completion(
-            messages=messages,
-            temperature=0.5,
-            max_tokens=50
-        )
+        try:
+            prompt = f"""请根据用户的问题,生成一个简短、准确的对话标题。
 
-        return response["content"][:50]  # 确保不超过50字符
+要求:
+1. 长度控制在8-25个汉字
+2. 准确概括用户问题的核心内容
+3. 使用简洁明了的语言
+4. 不要包含标点符号、引号、emoji
+5. 只返回标题文本,不要有任何解释或额外内容
+
+示例:
+用户: "Python中如何实现异步编程?"
+标题: Python异步编程实现
+
+用户: "RAG系统的架构设计有哪些要点?"
+标题: RAG系统架构设计
+
+现在,请为以下问题生成标题:
+用户问题: {first_message}
+
+标题:"""
+
+            messages = [
+                {"role": "user", "content": prompt}
+            ]
+
+            response = await self.get_completion(
+                messages=messages,
+                model=model or self.default_model,
+                temperature=0.3,  # 降低温度以获得更确定的结果
+                max_tokens=60
+            )
+
+            title = response.get("content", "").strip()
+
+            # 清理标题: 去除引号、多余空格等
+            title = title.replace('"', '').replace("'", '').replace('「', '').replace('」', '').strip()
+
+            # 去除可能的"标题:"前缀
+            if title.startswith("标题:") or title.startswith("标题："):
+                title = title[3:].strip()
+
+            # 限制长度
+            if len(title) > 30:
+                title = title[:30]
+            elif len(title) < 2:
+                # 标题太短,使用用户消息前缀
+                title = first_message[:20]
+
+            logger.info(f"生成会话标题成功: {title}")
+            return title
+
+        except Exception as e:
+            logger.error(f"生成会话标题失败: {e}")
+            # 失败时返回用户消息的前20个字符
+            fallback_title = first_message[:20] if len(first_message) > 20 else first_message
+            return fallback_title

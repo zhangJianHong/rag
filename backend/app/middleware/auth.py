@@ -6,7 +6,6 @@ from typing import Optional, List
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-import jwt
 
 from ..models.database import User, Role
 from ..services.auth import auth_service
@@ -40,7 +39,7 @@ class AuthMiddleware:
             if username is None:
                 raise credentials_exception
 
-        except jwt.PyJWTError:
+        except Exception:
             raise credentials_exception
 
         # 从数据库获取用户信息
@@ -159,3 +158,31 @@ require_readonly = AuthMiddleware.check_role("readonly")
 get_current_user = AuthMiddleware.get_current_user
 get_current_active_user = AuthMiddleware.get_current_active_user
 get_current_admin_user = AuthMiddleware.get_current_admin_user
+
+# WebSocket认证支持
+async def get_current_user_websocket(token: str, db: Session) -> User:
+    """WebSocket认证 - 获取当前用户"""
+    credentials_exception = Exception("Could not validate credentials")
+
+    try:
+        # 验证JWT令牌
+        payload = auth_service.verify_token(token, "access")
+        if payload is None:
+            raise credentials_exception
+
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+
+    except Exception:
+        raise credentials_exception
+
+    # 从数据库获取用户信息
+    user = db.query(User).filter(User.username == username).first()
+    if user is None:
+        raise credentials_exception
+
+    if user.is_active != 'Y':
+        raise Exception("User account is disabled")
+
+    return user

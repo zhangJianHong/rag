@@ -74,7 +74,7 @@ export const useChatStore = defineStore('chat', {
       }
     },
 
-    async sendMessage({ message, model = 'gpt-3.5-turbo', useRAG = true, stream = true }) {
+    async sendMessage({ message, model = 'gpt-3.5-turbo', useRAG = true, stream = true, namespace = null }) {
       // 确保有活动会话
       if (!this.activeSessionId) {
         const session = await this.createSession(message.substring(0, 30))
@@ -105,14 +105,21 @@ export const useChatStore = defineStore('chat', {
       if (stream) {
         // 流式响应
         this.isGenerating = true
+        const params = {
+          session_id: this.activeSessionId,
+          message: message,
+          use_rag: useRAG,
+          stream: true,
+          model: model
+        }
+
+        // 如果指定了领域,添加到参数中
+        if (namespace) {
+          params.namespace = namespace
+        }
+
         const eventSource = new EventSource(
-          `${API_BASE_URL}/api/chat/send?` + new URLSearchParams({
-            session_id: this.activeSessionId,
-            message: message,
-            use_rag: useRAG,
-            stream: true,
-            model: model
-          })
+          `${API_BASE_URL}/api/chat/send?` + new URLSearchParams(params)
         )
 
         this.eventSource = eventSource
@@ -125,6 +132,11 @@ export const useChatStore = defineStore('chat', {
             this.isGenerating = false
             eventSource.close()
             this.eventSource = null
+
+            // 【刷新会话列表】消息完成后刷新会话列表以更新标题
+            setTimeout(() => {
+              this.loadSessions()
+            }, 800) // 延迟800ms确保后端标题已生成
           } else if (data.type === 'error') {
             console.error('Stream error:', data.error)
             this.isGenerating = false
@@ -142,15 +154,27 @@ export const useChatStore = defineStore('chat', {
       } else {
         // 非流式响应
         try {
-          const response = await api.post('/api/chat/send', {
+          const requestData = {
             session_id: this.activeSessionId,
             message,
             use_rag: useRAG,
             stream: false,
             model
-          })
+          }
+
+          // 如果指定了领域,添加到请求数据中
+          if (namespace) {
+            requestData.namespace = namespace
+          }
+
+          const response = await api.post('/api/chat/send', requestData)
 
           this.messages[this.activeSessionId][messageIndex].content = response.data.message
+
+          // 【刷新会话列表】非流式响应完成后也刷新会话列表
+          setTimeout(() => {
+            this.loadSessions()
+          }, 500)
         } catch (error) {
           console.error('Failed to send message:', error)
           this.messages[this.activeSessionId][messageIndex].content = '发送失败，请重试'

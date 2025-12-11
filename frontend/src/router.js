@@ -60,6 +60,16 @@ const routes = [
     }
   },
   {
+    path: '/index-management',
+    name: 'IndexManagement',
+    component: () => import('./views/IndexManagement.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '索引管理',
+      permissions: ['document_write']
+    }
+  },
+  {
     path: '/history',
     name: 'History',
     component: () => import('./views/History.vue'),
@@ -80,6 +90,36 @@ const routes = [
   },
 
   // 管理员路由
+  {
+    path: '/performance',
+    name: 'Performance',
+    component: () => import('./views/Performance.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '性能监控',
+      permissions: ['system_settings']
+    }
+  },
+  {
+    path: '/knowledge-domains',
+    name: 'KnowledgeDomains',
+    component: () => import('./views/KnowledgeDomains.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '知识领域管理',
+      permissions: ['system_settings']
+    }
+  },
+  {
+    path: '/routing-rules',
+    name: 'RoutingRules',
+    component: () => import('./views/RoutingRules.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '路由规则管理',
+      permissions: ['system_settings']
+    }
+  },
   {
     path: '/logs',
     name: 'Logs',

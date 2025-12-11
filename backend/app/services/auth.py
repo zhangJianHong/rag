@@ -64,7 +64,7 @@ class AuthService:
             if payload.get("type") != token_type:
                 return None
             return payload
-        except jwt.PyJWTError:
+        except Exception:
             return None
 
     def authenticate_user(self, db: Session, username: str, password: str) -> Optional[User]:
