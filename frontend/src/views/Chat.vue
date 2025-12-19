@@ -82,7 +82,9 @@
         <InputBar
           v-model="inputMessage"
           :disabled="isLoading"
+          :session-id="activeSessionId || 'temp'"
           @send="sendMessage"
+          @send-with-images="sendMessageWithImages"
           @stop="stopGeneration"
           :is-generating="isGenerating"
         />
@@ -122,6 +124,7 @@ import QueryResult from '../components/query/QueryResult.vue'
 import { useChatStore } from '../store/chatStore'
 import llmService from '../services/llmService'
 import { queryDocumentsV2, formatQueryResults } from '../services/queryService'
+import api from '../services/api'  // 添加api导入
 
 const chatStore = useChatStore()
 
@@ -253,6 +256,72 @@ const sendMessage = async () => {
   } catch (error) {
     console.error('发送消息失败:', error)
     ElMessage.error('发送消息失败：' + error.message)
+  } finally {
+    isLoading.value = false
+    isGenerating.value = false
+  }
+}
+
+const sendMessageWithImages = async ({ text, images }) => {
+  console.log('sendMessageWithImages 被调用:', { text, images })
+
+  if (!text.trim() && images.length === 0) {
+    console.log('没有文本也没有图片，取消发送')
+    return
+  }
+
+  // 设置加载状态
+  isLoading.value = true
+  isGenerating.value = true
+
+  try {
+    // 确保有活动会话
+    if (!activeSessionId.value) {
+      console.log('没有活动会话，创建新会话')
+      await createNewSession()
+    }
+
+    // 提取图片ID列表
+    const imageIds = images.map(img => img.id)
+    console.log('图片ID列表:', imageIds)
+
+    // 准备请求数据
+    const requestData = {
+      session_id: activeSessionId.value,
+      message: text || '请查看图片',
+      model: selectedModel.value,
+      use_rag: useRAG.value,
+      stream: false,  // 带图片的消息暂时不使用流式响应
+      image_ids: imageIds,  // 传递图片ID列表
+      // RAG相关参数
+      namespace: retrievalSettings.value.namespace,
+      retrieval_mode: retrievalSettings.value.mode,
+      retrieval_method: retrievalSettings.value.method,
+      top_k: retrievalSettings.value.topK,
+      alpha: retrievalSettings.value.alpha,
+      similarity_threshold: retrievalSettings.value.similarityThreshold
+    }
+
+    console.log('发送带图片的消息:', requestData)
+
+    // 调用API发送消息
+    const response = await api.post('/api/chat/send', requestData)
+
+    console.log('发送响应:', response.data)
+
+    if (response.data) {
+      // 重新加载消息列表以获取最新消息（包括图片）
+      await chatStore.loadMessages(activeSessionId.value)
+
+      // 滚动到底部
+      await nextTick()
+      chatWindow.value?.scrollToBottom()
+
+      ElMessage.success('消息发送成功')
+    }
+  } catch (error) {
+    console.error('发送消息失败:', error)
+    ElMessage.error('发送消息失败：' + (error.response?.data?.detail || error.message))
   } finally {
     isLoading.value = false
     isGenerating.value = false

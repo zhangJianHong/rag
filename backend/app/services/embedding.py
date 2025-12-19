@@ -47,8 +47,8 @@ class EmbeddingService:
         """初始化OpenAI嵌入模型"""
         model = model_name or EMBEDDING_MODEL
         self.embeddings = OpenAIEmbeddings(
-            openai_api_key=OPENAI_API_KEY,
-            openai_api_base=OPENAI_API_URL,
+            api_key=OPENAI_API_KEY,
+            base_url=OPENAI_API_URL,
             model=model
         )
         logger.info(f"已初始化OpenAI嵌入模型: {model}")

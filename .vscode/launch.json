@@ -13,8 +13,10 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/backend",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/backend"
-                
+                "PYTHONPATH": "${workspaceFolder}/backend",
+                "TRACING_API_KEY":"pk-lh-d6f602e4-1184-41b3-b6c0-d51fe77fd339",
+                "TRACING_OTEL_ENDPOINT":"http://192.168.2.81:9080/llm/otel",
+                "TRACING_ENABLED":"true"
             }
         },
         {

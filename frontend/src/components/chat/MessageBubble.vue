@@ -9,7 +9,50 @@
 
       <!-- 消息内容 -->
       <div class="content">
-        <div class="text" v-if="message.content" v-html="renderedContent"></div>
+        <!-- 多模态消息（包含图片） -->
+        <div v-if="isMultimodalMessage" class="multimodal-content">
+          <!-- 图片区域 -->
+          <div v-if="message.content.images && message.content.images.length > 0" class="message-images">
+            <ChatImage
+              v-for="img in message.content.images"
+              :key="img.url"
+              :src="img.url"
+              :thumbnail="img.thumbnail_url"
+              :original-name="img.original_name"
+              :width="img.width"
+              :height="img.height"
+              :file-size="img.file_size"
+              :max-width="200"
+              :inline="false"
+              class="message-image-item"
+            />
+          </div>
+          <!-- 文本内容 -->
+          <div class="text" v-if="message.content.text" v-html="renderedMultimodalContent"></div>
+        </div>
+        <!-- 来自后端的带图片消息 -->
+        <div v-else-if="message.images && message.images.length > 0" class="multimodal-content">
+          <!-- 图片区域 -->
+          <div class="message-images">
+            <ChatImage
+              v-for="img in message.images"
+              :key="img.id"
+              :src="img.url"
+              :thumbnail="img.thumbnail_url"
+              :original-name="img.original_name"
+              :width="img.width"
+              :height="img.height"
+              :file-size="img.file_size"
+              :max-width="200"
+              :inline="false"
+              class="message-image-item"
+            />
+          </div>
+          <!-- 文本内容 -->
+          <div class="text" v-if="message.content" v-html="renderedContent"></div>
+        </div>
+        <!-- 普通文本消息 -->
+        <div v-else-if="message.content" class="text" v-html="renderedContent"></div>
         <!-- 加载动画 - 当消息为空且是助手消息时显示 -->
         <div v-else-if="message.role === 'assistant' && !message.content" class="loading-dots">
           <span class="dot"></span>
@@ -53,6 +96,7 @@ import { ElMessage } from 'element-plus'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github-dark.css'
+import ChatImage from './ChatImage.vue'
 
 // 配置 marked
 marked.setOptions({
@@ -94,11 +138,26 @@ const messageClass = computed(() => ({
   'is-last': props.isLast
 }))
 
+// 判断是否为多模态消息
+const isMultimodalMessage = computed(() => {
+  return props.message.content && typeof props.message.content === 'object' && props.message.content.type === 'multimodal'
+})
+
+// 渲染多模态消息的文本内容
+const renderedMultimodalContent = computed(() => {
+  const text = props.message.content.text || ''
+  if (props.message.role === 'assistant') {
+    return marked.parse(text)
+  }
+  return text.replace(/\n/g, '<br>')
+})
+
+// 渲染普通文本消息
 const renderedContent = computed(() => {
   if (props.message.role === 'assistant') {
     return marked.parse(props.message.content || '')
   }
-  return props.message.content.replace(/\n/g, '<br>')
+  return (props.message.content || '').replace(/\n/g, '<br>')
 })
 
 const formatTime = (timestamp) => {
@@ -176,6 +235,32 @@ const regenerateMessage = () => {
   justify-content: center;
   color: white;
   flex-shrink: 0;
+}
+
+// 多模态消息样式
+.multimodal-content {
+  .message-images {
+    margin-bottom: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    .message-image-item {
+      border-radius: var(--tech-radius-md);
+      overflow: hidden;
+      box-shadow: var(--tech-shadow-sm);
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: scale(1.02);
+        box-shadow: var(--tech-shadow-md);
+      }
+    }
+  }
+
+  .text {
+    margin-top: 8px;
+  }
 }
 
 .content {

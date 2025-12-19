@@ -15,8 +15,8 @@ class ChatSession(Base):
     id = Column(Integer, primary_key=True)
     session_id = Column(String(100), unique=True, nullable=False)
     title = Column(String(200), default="新对话")
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     session_metadata = Column(JSON, default={})
 
     # 关系
@@ -30,8 +30,9 @@ class ChatMessage(Base):
     session_id = Column(String(100), ForeignKey('chat_sessions.session_id'))
     role = Column(String(20), nullable=False)  # 'user' or 'assistant'
     content = Column(Text, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    timestamp = Column(DateTime, default=datetime.now)
     message_metadata = Column(JSON, default={})  # 存储额外信息如token数、模型等
 
     # 关系
     session = relationship("ChatSession", back_populates="messages")
+    images = relationship("ChatImage", back_populates="message")

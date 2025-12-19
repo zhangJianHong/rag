@@ -11,6 +11,8 @@ from datetime import datetime
 import json
 import uuid
 import asyncio
+import base64
+import os
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -18,7 +20,7 @@ from app.models.chat import ChatSession, ChatMessage
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService
 from app.services.chat_rag_service import ChatRAGService
-from app.config.settings import get_settings
+from app.config.settings import get_settings, SERVER_URL
 import logging
 
 router = APIRouter()
@@ -53,6 +55,8 @@ class ChatRequest(BaseModel):
     similarity_threshold: float = 0.2  # 相似度阈值
     alpha: float = 0.5  # 混合检索权重(0.0=纯BM25, 1.0=纯向量)
     enable_query_rewrite: bool = True  # 是否启用查询重写
+    # 新增图片支持
+    image_ids: Optional[List[int]] = []  # 关联的图片ID列表
 
 class ChatResponse(BaseModel):
     """聊天响应模型"""
@@ -64,6 +68,9 @@ class ChatResponse(BaseModel):
     # 新增可选字段(向后兼容)
     domain_classification: Optional[Dict] = None
     retrieval_stats: Optional[Dict] = None
+    # 新增图片信息
+    message_id: Optional[int] = None  # 消息ID，用于前端获取图片
+    images: Optional[List[Dict]] = None  # 关联的图片信息
 
 class SessionCreate(BaseModel):
     """创建会话请求"""
@@ -112,6 +119,16 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
         db.add(user_message)
         db.commit()
 
+        # 关联图片到消息（如果有）
+        if request.image_ids:
+            from app.models.chat_image import ChatImage
+            # 更新图片记录的 message_id
+            db.query(ChatImage).filter(
+                ChatImage.id.in_(request.image_ids),
+                ChatImage.session_id == session_id
+            ).update({"message_id": user_message.id}, synchronize_session=False)
+            db.commit()
+
         # 【自动生成标题】检查是否为第一条用户消息
         user_message_count = db.query(ChatMessage).filter(
             ChatMessage.session_id == session_id,
@@ -141,10 +158,51 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
             ChatMessage.session_id == session_id
         ).order_by(ChatMessage.timestamp).limit(10).all()
 
-        messages = [
-            {"role": msg.role, "content": msg.content}
-            for msg in history
-        ]
+        # 构造消息列表（支持多模态格式）
+        def build_message_content(msg: ChatMessage) -> Dict[str, Any]:
+            """构造消息内容，支持多模态格式"""
+            # 如果消息有关联图片，使用多模态格式
+            if msg.images and len(msg.images) > 0:
+                content = []
+
+                # 添加文本内容
+                if msg.content and msg.content.strip():
+                    content.append({
+                        "type": "text",
+                        "text": msg.content
+                    })
+
+                # 添加图片内容（转换为base64）
+                for img in msg.images:
+                    try:
+                        # 读取图片文件并转换为base64
+                        if os.path.exists(img.file_path):
+                            with open(img.file_path, "rb") as image_file:
+                                image_data = image_file.read()
+                                base64_image = base64.b64encode(image_data).decode('utf-8')
+
+                                # 构造data URL格式
+                                mime_type = img.mime_type or "image/jpeg"
+                                data_url = f"data:{mime_type};base64,{base64_image}"
+
+                                content.append({
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": data_url
+                                    }
+                                })
+                        else:
+                            logger.warning(f"图片文件不存在: {img.file_path}")
+                    except Exception as e:
+                        logger.error(f"读取图片失败: {e}")
+                        continue
+
+                return {"role": msg.role, "content": content}
+            else:
+                # 纯文本消息
+                return {"role": msg.role, "content": msg.content}
+
+        messages = [build_message_content(msg) for msg in history]
 
         # 如果启用RAG，获取相关文档
         sources = None
@@ -248,7 +306,6 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
                             current_domain = classification.get('namespace')
 
                             if not domain_history or domain_history[-1].get('namespace') != current_domain:
-                                from datetime import datetime
                                 domain_history.append({
                                     'namespace': current_domain,
                                     'timestamp': datetime.utcnow().isoformat(),
@@ -329,13 +386,36 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
             db.add(assistant_message)
             db.commit()
 
+            # 获取消息关联的图片（如果有）
+            images = []
+            if request.image_ids:
+                from app.models.chat_image import ChatImage
+                image_records = db.query(ChatImage).filter(
+                    ChatImage.message_id == user_message.id
+                ).all()
+                images = [
+                    {
+                        "id": img.id,
+                        "filename": img.filename,
+                        "original_name": img.original_name,
+                        "file_size": img.file_size,
+                        "width": img.width,
+                        "height": img.height,
+                        "url": f"/api/chat/images/view/{img.filename}",
+                        "thumbnail_url": f"/api/chat/images/thumb/{img.filename}"
+                    }
+                    for img in image_records
+                ]
+
             # 构建响应
             chat_response = ChatResponse(
                 session_id=session_id,
                 message=response["content"],
                 sources=sources,
                 tokens_used=response.get("tokens_used"),
-                timestamp=datetime.utcnow()
+                timestamp=datetime.utcnow(),
+                message_id=user_message.id,  # 添加消息ID
+                images=images if images else None  # 添加图片信息
             )
 
             # 【数据持久化 - 层3: 响应体增强】
@@ -356,6 +436,7 @@ async def send_message(request: ChatRequest, llm_svc: LLMService = Depends(get_l
             return chat_response
 
     except Exception as e:
+        logger.error(f"Chat API 错误: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/chat/send", response_model=ChatResponse)
@@ -440,13 +521,38 @@ async def get_session_messages(session_id: str, db: Session = Depends(get_db)):
         ChatMessage.session_id == session_id
     ).order_by(ChatMessage.timestamp).all()
 
+    # 获取所有消息关联的图片
+    from app.models.chat_image import ChatImage
+    message_ids = [msg.id for msg in messages]
+    images_by_message = {}
+
+    if message_ids:
+        image_records = db.query(ChatImage).filter(
+            ChatImage.message_id.in_(message_ids)
+        ).all()
+
+        for img in image_records:
+            if img.message_id not in images_by_message:
+                images_by_message[img.message_id] = []
+            images_by_message[img.message_id].append({
+                "id": img.id,
+                "filename": img.filename,
+                "original_name": img.original_name,
+                "file_size": img.file_size,
+                "width": img.width,
+                "height": img.height,
+                "url": f"/api/chat/images/view/{img.filename}",
+                "thumbnail_url": f"/api/chat/images/thumb/{img.filename}"
+            })
+
     return [
         {
             "id": msg.id,
             "role": msg.role,
             "content": msg.content,
             "timestamp": msg.timestamp,
-            "metadata": msg.message_metadata
+            "metadata": msg.message_metadata,
+            "images": images_by_message.get(msg.id, [])  # 添加图片信息
         }
         for msg in messages
     ]
@@ -516,13 +622,66 @@ async def get_query_history(
                 ChatMessage.role == "user"
             ).order_by(ChatMessage.timestamp.asc()).first()
 
+            # 获取会话的所有消息（用于详情展示）
+            all_messages = db.query(ChatMessage).filter(
+                ChatMessage.session_id == session.session_id
+            ).order_by(ChatMessage.timestamp.asc()).all()
+
+            # 获取图片关联
+            from app.models.chat_image import ChatImage
+            message_ids = [msg.id for msg in all_messages]
+            images_by_message = {}
+
+            if message_ids:
+                image_records = db.query(ChatImage).filter(
+                    ChatImage.message_id.in_(message_ids)
+                ).all()
+
+                for img in image_records:
+                    if img.message_id not in images_by_message:
+                        images_by_message[img.message_id] = []
+                    images_by_message[img.message_id].append({
+                        "id": img.id,
+                        "filename": img.filename,
+                        "original_name": img.original_name,
+                        "url": f"/api/chat/images/view/{img.filename}",
+                        "thumbnail_url": f"/api/chat/images/thumb/{img.filename}"
+                    })
+
+            # 格式化所有消息
+            messages_data = [
+                {
+                    "id": msg.id,
+                    "role": msg.role,
+                    "content": msg.content,
+                    "timestamp": msg.timestamp.isoformat(),
+                    "metadata": msg.message_metadata,
+                    "images": images_by_message.get(msg.id, [])
+                }
+                for msg in all_messages
+            ]
+
+            # 获取第一个助手回复（用于预览）
+            first_assistant_message = db.query(ChatMessage).filter(
+                ChatMessage.session_id == session.session_id,
+                ChatMessage.role == "assistant"
+            ).order_by(ChatMessage.timestamp.asc()).first()
+
             if first_user_message:
                 history.append({
                     "id": session.session_id,
                     "query": first_user_message.content,
+                    "response": first_assistant_message.content if first_assistant_message else None,
                     "timestamp": session.created_at.isoformat(),
                     "session_id": session.session_id,
-                    "title": session.title
+                    "title": session.title,
+                    "messages": messages_data,  # 完整的对话历史
+                    "message_count": len(messages_data),
+                    # 从第一条消息的元数据中提取信息
+                    "model": first_user_message.message_metadata.get("model") if first_user_message.message_metadata else None,
+                    "use_rag": first_user_message.message_metadata.get("use_rag") if first_user_message.message_metadata else None,
+                    "tokens_used": first_assistant_message.message_metadata.get("tokens_used") if first_assistant_message and first_assistant_message.message_metadata else None,
+                    "response_time": first_assistant_message.message_metadata.get("response_time") if first_assistant_message and first_assistant_message.message_metadata else None,
                 })
 
         # 返回分页数据和元信息

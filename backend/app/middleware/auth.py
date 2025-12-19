@@ -147,6 +147,11 @@ require_query_ask = AuthMiddleware.check_permission("query_ask")
 require_query_history = AuthMiddleware.check_permission("query_history")
 require_system_settings = AuthMiddleware.check_permission("system_settings")
 require_user_management = AuthMiddleware.check_permission("user_management")
+
+# 导出常用的认证函数
+get_current_user = AuthMiddleware.get_current_user
+get_current_active_user = AuthMiddleware.get_current_active_user
+get_current_admin_user = AuthMiddleware.get_current_admin_user
 require_role_management = AuthMiddleware.check_permission("role_management")
 
 # 角色检查装饰器

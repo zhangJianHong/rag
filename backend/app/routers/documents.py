@@ -192,7 +192,15 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_document_upload)
 ):
-    """处理文档上传请求,支持PDF, TXT, DOCX格式,并可选启用变更检测"""
+    """
+    处理文档上传请求,支持PDF, TXT, DOCX格式,并可选启用变更检测
+
+    【更新机制】:
+    - 如果文档(filename + namespace)已存在,则检测内容变化
+    - 内容未变化: 直接返回现有文档信息
+    - 内容已变化: 删除旧chunks,更新文档,创建新chunks
+    - 文档不存在: 创建新文档记录
+    """
     try:
         # 验证文件类型
         if not file.filename.endswith(('.pdf', '.txt', '.docx', '.doc')):
@@ -233,37 +241,114 @@ async def upload_document(
         text_chunks = split_text_into_chunks(text_content)
         logger.info(f"Document split into {len(text_chunks)} chunks")
 
-        # 第一步：创建主文档记录
-        main_document = Document(
-            content=text_content,  # 完整文档内容
-            embedding=None,  # 主文档暂时不需要嵌入向量（如果需要可以为完整文档生成）
-            doc_metadata=json.dumps({
+        # 计算新内容的哈希值(用于变更检测)
+        new_content_hash = calculate_content_hash(text_content)
+
+        # ========== 【阶段1 核心修复】检查文档是否已存在 ==========
+        existing_doc = db.query(Document).filter(
+            Document.filename == file.filename,
+            Document.namespace == namespace
+        ).first()
+
+        is_update = False
+        main_document = None
+        change_status = "new"
+
+        if existing_doc:
+            # ========== 文档已存在，检查内容是否变化 ==========
+            logger.info(f"检测到已存在文档: id={existing_doc.id}, filename={file.filename}, namespace={namespace}")
+
+            # 获取索引记录以对比哈希
+            from app.models.index_record import DocumentIndexRecord
+            existing_record = db.query(DocumentIndexRecord).filter(
+                DocumentIndexRecord.doc_id == existing_doc.id
+            ).first()
+
+            if existing_record and existing_record.content_hash == new_content_hash:
+                # ========== 内容未变化，直接返回 ==========
+                logger.info(f"文档内容未变化 (hash={new_content_hash[:8]}...)")
+
+                # 获取现有的chunk IDs
+                existing_chunks = db.query(DocumentChunk).filter(
+                    DocumentChunk.document_id == existing_doc.id
+                ).all()
+
+                return {
+                    "message": "Document unchanged - content is identical",
+                    "document_id": existing_doc.id,
+                    "document_chunk_ids": [chunk.id for chunk in existing_chunks],
+                    "filename": file.filename,
+                    "chunks_created": 0,
+                    "total_chunks": len(existing_chunks),
+                    "change_detection": {
+                        "status": "unchanged",
+                        "content_hash": new_content_hash,
+                        "index_version": existing_record.index_version if existing_record else 0
+                    }
+                }
+
+            # ========== 内容已变化，执行更新 ==========
+            logger.info(f"文档内容已变化，开始更新: old_hash={existing_record.content_hash[:8] if existing_record else 'N/A'}..., new_hash={new_content_hash[:8]}...")
+
+            is_update = True
+            main_document = existing_doc
+            change_status = "updated"
+
+            # 【事务保护】在同一事务中删除旧chunks
+            logger.info(f"删除旧的文档块...")
+            deleted_chunks_count = db.query(DocumentChunk).filter(
+                DocumentChunk.document_id == existing_doc.id
+            ).delete(synchronize_session=False)
+            logger.info(f"已删除 {deleted_chunks_count} 个旧文档块")
+
+            # 更新主文档内容
+            existing_doc.content = text_content
+            existing_doc.doc_metadata = json.dumps({
                 "filename": file.filename,
                 "size": len(file_content),
                 "type": file.filename.split('.')[-1],
                 "total_chunks": len(text_chunks),
                 "total_size": len(text_content),
                 "user_id": current_user.id,
-                "namespace": namespace  # 添加领域信息到元数据
-            }),
-            filename=file.filename,
-            created_at=str(datetime.now()),
-            namespace=namespace  # 设置领域
-        )
+                "namespace": namespace,
+                "updated_at": str(datetime.now())  # 记录更新时间
+            })
+            # created_at 保持不变，只更新内容
 
-        db.add(main_document)
-        db.commit()
-        db.refresh(main_document)
+        else:
+            # ========== 文档不存在，创建新记录 ==========
+            logger.info(f"创建新文档: filename={file.filename}, namespace={namespace}")
 
-        # 创建用户文档关联
-        user_document = UserDocument(
-            user_id=current_user.id,
-            document_id=main_document.id,
-            permission_level="write"
-        )
-        db.add(user_document)
+            main_document = Document(
+                content=text_content,
+                embedding=None,
+                doc_metadata=json.dumps({
+                    "filename": file.filename,
+                    "size": len(file_content),
+                    "type": file.filename.split('.')[-1],
+                    "total_chunks": len(text_chunks),
+                    "total_size": len(text_content),
+                    "user_id": current_user.id,
+                    "namespace": namespace
+                }),
+                filename=file.filename,
+                created_at=str(datetime.now()),
+                namespace=namespace
+            )
 
-        # 第二步：为每个块创建文档块记录
+            db.add(main_document)
+            db.commit()
+            db.refresh(main_document)
+
+            # 创建用户文档关联
+            user_document = UserDocument(
+                user_id=current_user.id,
+                document_id=main_document.id,
+                permission_level="write"
+            )
+            db.add(user_document)
+
+        # ========== 创建文档块记录（新建或更新都需要）==========
         document_chunk_ids = []
         for i, chunk in enumerate(text_chunks):
             try:
@@ -272,9 +357,9 @@ async def upload_document(
 
                 # 创建文档块记录，关联到主文档
                 document_chunk = DocumentChunk(
-                    document_id=main_document.id,  # ✅ 关联到主文档
+                    document_id=main_document.id,  # 复用existing_doc.id或新document.id
                     content=chunk,
-                    embedding=embedding,  # 直接使用向量列表（PostgreSQL ARRAY类型）
+                    embedding=embedding,
                     chunk_metadata=json.dumps({
                         "chunk_index": i,
                         "total_chunks": len(text_chunks),
@@ -283,35 +368,28 @@ async def upload_document(
                     chunk_index=i,
                     filename=f"{file.filename}_chunk_{i+1}",
                     created_at=str(datetime.now()),
-                    namespace=namespace  # 设置文档块的领域
+                    namespace=namespace
                 )
 
-                # 保存到数据库
                 db.add(document_chunk)
-                db.flush()  # flush 会分配 ID 但不会提交事务
-                # 获取ID后立即追加，避免使用 refresh 读取 vector 字段
+                db.flush()
                 document_chunk_ids.append(document_chunk.id)
                 db.commit()  # 提交事务
 
             except Exception as chunk_error:
                 logger.error(f"Error processing chunk {i+1}: {chunk_error}")
-                # 继续处理其他块，不中断整个上传过程
+                # 继续处理其他块
                 continue
 
         if not document_chunk_ids:
             raise HTTPException(status_code=500, detail="Failed to process any chunks")
 
-        # 集成变更检测功能
+        # ========== 更新索引记录 ==========
         change_detection_result = None
         if enable_change_detection:
             try:
-                # 计算文档内容哈希
-                content_hash = calculate_content_hash(text_content)
+                from app.models.index_record import DocumentIndexRecord, IndexChangeHistory
 
-                # 创建或更新索引记录
-                from app.models.index_record import DocumentIndexRecord
-
-                # 检查是否已存在索引记录
                 existing_record = db.query(DocumentIndexRecord).filter(
                     DocumentIndexRecord.doc_id == main_document.id
                 ).first()
@@ -319,27 +397,63 @@ async def upload_document(
                 now = datetime.now()
 
                 if existing_record:
-                    # 更新现有记录
+                    # 【阶段2：并发控制】使用乐观锁更新现有索引记录
                     old_hash = existing_record.content_hash
-                    existing_record.content_hash = content_hash
-                    existing_record.chunk_count = len(document_chunk_ids)
-                    existing_record.vector_count = len(document_chunk_ids)
-                    existing_record.indexed_at = now
-                    existing_record.file_size = len(file_content)
-                    existing_record.file_modified_at = now
-                    existing_record.index_version += 1
+                    current_version = existing_record.index_version  # 记录当前版本号
+
+                    # 使用 WHERE 子句检查版本号，实现乐观锁
+                    update_count = db.query(DocumentIndexRecord).filter(
+                        DocumentIndexRecord.doc_id == main_document.id,
+                        DocumentIndexRecord.index_version == current_version  # 版本检查
+                    ).update({
+                        "content_hash": new_content_hash,
+                        "chunk_count": len(document_chunk_ids),
+                        "vector_count": len(document_chunk_ids),
+                        "indexed_at": now,
+                        "file_size": len(file_content),
+                        "file_modified_at": now,
+                        "index_version": current_version + 1  # 增加版本号
+                    }, synchronize_session=False)
+
+                    if update_count == 0:
+                        # 版本号不匹配，说明有并发修改
+                        db.rollback()
+                        raise HTTPException(
+                            status_code=409,
+                            detail="Concurrent modification detected. The document was modified by another process. Please retry."
+                        )
+
+                    # 刷新记录以获取最新数据
+                    db.refresh(existing_record)
 
                     change_detection_result = {
-                        "status": "updated" if old_hash != content_hash else "unchanged",
+                        "status": change_status,  # "updated" or "new"
                         "old_hash": old_hash,
-                        "new_hash": content_hash,
+                        "new_hash": new_content_hash,
                         "index_version": existing_record.index_version
                     }
+
+                    # 【阶段2】记录变更历史（仅更新时）
+                    if change_status == "updated":
+                        change_history = IndexChangeHistory(
+                            doc_id=main_document.id,
+                            change_type='content_modified',
+                            old_hash=old_hash,
+                            new_hash=new_content_hash,
+                            changed_at=now,
+                            change_metadata=json.dumps({
+                                "updated_by": current_user.id,
+                                "filename": file.filename,
+                                "chunks_updated": len(document_chunk_ids),
+                                "method": "implicit_upload"
+                            })
+                        )
+                        db.add(change_history)
                 else:
                     # 创建新索引记录
                     new_record = DocumentIndexRecord(
                         doc_id=main_document.id,
-                        content_hash=content_hash,
+                        content_hash=new_content_hash,
                         chunk_count=len(document_chunk_ids),
                         vector_count=len(document_chunk_ids),
                         indexed_at=now,
@@ -352,28 +466,44 @@ async def upload_document(
 
                     change_detection_result = {
                         "status": "new",
-                        "content_hash": content_hash,
+                        "content_hash": new_content_hash,
                         "index_version": 1
                     }
+
+                    # 【阶段2】记录创建历史
+                    change_history = IndexChangeHistory(
+                        doc_id=main_document.id,
+                        change_type='created',
+                        old_hash=None,
+                        new_hash=new_content_hash,
+                        changed_at=now,
+                        change_metadata=json.dumps({
+                            "created_by": current_user.id,
+                            "filename": file.filename,
+                            "chunks_created": len(document_chunk_ids),
+                            "method": "initial_upload"
+                        })
+                    )
+                    db.add(change_history)
 
                 db.commit()
                 logger.info(f"变更检测完成: {change_detection_result}")
 
             except Exception as e:
                 logger.error(f"变更检测失败: {e}")
-                # 变更检测失败不影响上传流程
                 change_detection_result = {
                     "status": "error",
                     "error": str(e)
                 }
 
         response = {
-            "message": "Document uploaded successfully",
-            "document_id": main_document.id,  # 主文档ID
-            "document_chunk_ids": document_chunk_ids,  # 所有分块ID
+            "message": f"Document {'updated' if is_update else 'uploaded'} successfully",
+            "document_id": main_document.id,
+            "document_chunk_ids": document_chunk_ids,
             "filename": file.filename,
             "chunks_created": len(document_chunk_ids),
-            "total_chunks": len(text_chunks)
+            "total_chunks": len(text_chunks),
+            "is_update": is_update  # 新增字段，标识是否为更新操作
         }
 
         if change_detection_result:
@@ -385,6 +515,7 @@ async def upload_document(
         raise
     except Exception as e:
         logger.error(f"Error uploading document: {e}")
+        db.rollback()  # 添加回滚保护
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 def _get_user_documents(db: Session, current_user: User, search_query: str = None):
@@ -567,8 +698,8 @@ async def get_document(document_id: int, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Document not found")
 
         return DocumentResponse(
-            id=document.id, 
-            filename=document.filename, 
+            id=document.id,
+            filename=document.filename,
             content=document.content,
             metadata=json.loads(document.doc_metadata) if document.doc_metadata else {},
             created_at=document.created_at
@@ -578,6 +709,254 @@ async def get_document(document_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         logger.error(f"Error getting document {document_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to get document")
+
+@router.put("/documents/{document_id}")
+async def update_document(
+    document_id: int,
+    file: UploadFile = File(...),
+    enable_change_detection: bool = Form(True),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_document_upload)
+):
+    """
+    【阶段2】显式更新已存在的文档
+
+    通过document_id直接更新文档内容
+    - 检查文档是否存在
+    - 检查用户权限
+    - 对比内容哈希，如果未变化则不更新
+    - 如果变化，删除旧chunks，创建新chunks
+    - 更新索引记录
+    - 记录变更历史
+    """
+    try:
+        # 1. 检查文档是否存在
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # 2. 检查用户权限
+        user_document = db.query(UserDocument).filter(
+            UserDocument.user_id == current_user.id,
+            UserDocument.document_id == document_id
+        ).first()
+
+        # 如果不是文档所有者，检查是否是管理员
+        if not user_document:
+            from app.services.auth import auth_service
+            is_admin = auth_service.has_permission(db, current_user, "user_management")
+            if not is_admin:
+                raise HTTPException(status_code=403, detail="Permission denied - you don't own this document")
+
+        # 3. 验证文件类型
+        if not file.filename.endswith(('.pdf', '.txt', '.docx', '.doc')):
+            raise HTTPException(400, "Only PDF, TXT, DOC and DOCX files are supported")
+
+        # 4. 读取并验证文件内容
+        file_content = await file.read()
+        if len(file_content) > MAX_FILE_SIZE:
+            raise HTTPException(413, f"File too large. Maximum: {MAX_FILE_SIZE // (1024*1024)}MB")
+
+        # 5. 提取文本内容
+        file_path = f"/tmp/{file.filename}"
+        with open(file_path, 'wb') as f:
+            f.write(file_content)
+
+        if file.filename.endswith('.pdf'):
+            text_content = extract_text_from_pdf(file_path)
+        elif file.filename.endswith(('.docx', '.doc')):
+            text_content = extract_text_from_docx(file_path)
+        else:
+            text_content = extract_text_from_txt(file_path)
+
+        if not text_content.strip():
+            raise HTTPException(400, "No text content found in file")
+
+        # 6. 计算新内容哈希，检查是否真的变化
+        new_content_hash = calculate_content_hash(text_content)
+
+        from app.models.index_record import DocumentIndexRecord, IndexChangeHistory
+        existing_record = db.query(DocumentIndexRecord).filter(
+            DocumentIndexRecord.doc_id == document_id
+        ).first()
+
+        if existing_record and existing_record.content_hash == new_content_hash:
+            # 内容未变化，直接返回
+            logger.info(f"文档 {document_id} 内容未变化")
+            existing_chunks = db.query(DocumentChunk).filter(
+                DocumentChunk.document_id == document_id
+            ).all()
+
+            return {
+                "message": "Document content unchanged",
+                "document_id": document_id,
+                "filename": file.filename,
+                "status": "unchanged",
+                "chunks_count": len(existing_chunks),
+                "change_detection": {
+                    "status": "unchanged",
+                    "content_hash": new_content_hash,
+                    "index_version": existing_record.index_version
+                }
+            }
+
+        # 7. 内容已变化，执行更新
+        logger.info(f"文档 {document_id} 内容已变化，开始更新")
+
+        text_chunks = split_text_into_chunks(text_content)
+        logger.info(f"文档分割成 {len(text_chunks)} 个块")
+
+        # 【事务保护】删除旧chunks
+        deleted_count = db.query(DocumentChunk).filter(
+            DocumentChunk.document_id == document_id
+        ).delete(synchronize_session=False)
+        logger.info(f"已删除 {deleted_count} 个旧文档块")
+
+        # 8. 更新主文档
+        document.content = text_content
+        document.filename = file.filename  # 允许更新文件名
+        document.doc_metadata = json.dumps({
+            "filename": file.filename,
+            "size": len(file_content),
+            "type": file.filename.split('.')[-1],
+            "total_chunks": len(text_chunks),
+            "total_size": len(text_content),
+            "user_id": current_user.id,
+            "namespace": document.namespace,
+            "updated_at": str(datetime.now()),
+            "update_count": json.loads(document.doc_metadata).get("update_count", 0) + 1 if document.doc_metadata else 1
+        })
+
+        # 9. 创建新chunks
+        document_chunk_ids = []
+        for i, chunk in enumerate(text_chunks):
+            try:
+                embedding = await embedding_service.create_embedding(chunk)
+
+                document_chunk = DocumentChunk(
+                    document_id=document_id,
+                    content=chunk,
+                    embedding=embedding,
+                    chunk_metadata=json.dumps({
+                        "chunk_index": i,
+                        "total_chunks": len(text_chunks),
+                        "chunk_size": len(chunk)
+                    }),
+                    chunk_index=i,
+                    filename=f"{file.filename}_chunk_{i+1}",
+                    created_at=str(datetime.now()),
+                    namespace=document.namespace
+                )
+
+                db.add(document_chunk)
+                db.flush()
+                document_chunk_ids.append(document_chunk.id)
+                db.commit()
+
+            except Exception as chunk_error:
+                logger.error(f"处理块 {i+1} 失败: {chunk_error}")
+                continue
+
+        if not document_chunk_ids:
+            raise HTTPException(500, "Failed to process any chunks")
+
+        # 10. 更新索引记录（带乐观锁并发控制）
+        change_detection_result = None
+        if enable_change_detection:
+            now = datetime.now()
+
+            if existing_record:
+                # 【阶段2：并发控制】使用乐观锁更新索引记录
+                old_hash = existing_record.content_hash
+                current_version = existing_record.index_version  # 记录当前版本号
+
+                # 使用 WHERE 子句检查版本号，实现乐观锁
+                update_count = db.query(DocumentIndexRecord).filter(
+                    DocumentIndexRecord.doc_id == document_id,
+                    DocumentIndexRecord.index_version == current_version  # 版本检查
+                ).update({
+                    "content_hash": new_content_hash,
+                    "chunk_count": len(document_chunk_ids),
+                    "vector_count": len(document_chunk_ids),
+                    "indexed_at": now,
+                    "file_size": len(file_content),
+                    "file_modified_at": now,
+                    "index_version": current_version + 1  # 增加版本号
+                }, synchronize_session=False)
+
+                if update_count == 0:
+                    # 版本号不匹配，说明有并发修改
+                    db.rollback()
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Concurrent modification detected. The document was modified by another process. Please retry."
+                    )
+
+                # 刷新记录以获取最新数据
+                db.refresh(existing_record)
+
+                change_detection_result = {
+                    "status": "updated",
+                    "old_hash": old_hash,
+                    "new_hash": new_content_hash,
+                    "index_version": existing_record.index_version  # 新版本号
+                }
+            else:
+                # 如果没有索引记录，创建一个
+                new_record = DocumentIndexRecord(
+                    doc_id=document_id,
+                    content_hash=new_content_hash,
+                    chunk_count=len(document_chunk_ids),
+                    vector_count=len(document_chunk_ids),
+                    indexed_at=now,
+                    file_size=len(file_content),
+                    file_modified_at=now,
+                    index_version=1,
+                    namespace=document.namespace
+                )
+                db.add(new_record)
+
+                change_detection_result = {
+                    "status": "new_index",
+                    "content_hash": new_content_hash,
+                    "index_version": 1
+                }
+
+            # 11. 【阶段2】记录变更历史
+            change_history = IndexChangeHistory(
+                doc_id=document_id,
+                change_type='content_modified',
+                old_hash=existing_record.content_hash if existing_record else None,
+                new_hash=new_content_hash,
+                changed_at=now,
+                change_metadata=json.dumps({
+                    "updated_by": current_user.id,
+                    "filename": file.filename,
+                    "chunks_updated": len(document_chunk_ids),
+                    "method": "explicit_put"
+                })
+            )
+            db.add(change_history)
+
+            db.commit()
+            logger.info(f"文档 {document_id} 更新完成，变更已记录")
+
+        return {
+            "message": "Document updated successfully",
+            "document_id": document_id,
+            "filename": file.filename,
+            "status": "updated",
+            "chunks_created": len(document_chunk_ids),
+            "chunks_deleted": deleted_count,
+            "change_detection": change_detection_result
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"更新文档 {document_id} 失败: {e}")
+        db.rollback()
+        raise HTTPException(500, f"Update failed: {str(e)}")
 
 @router.delete("/documents/{document_id}")
 async def delete_document(

@@ -25,7 +25,7 @@ else:
 # 环境变量配置
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_URL = os.getenv("OPENAI_API_URL")
-DB_URL = os.getenv("DB_URL", "postgresql://user:pass@localhost:5432/ragdb")
+DB_URL = os.getenv("DB_URL", "postgresql://postgres:admin!postgres123@localhost:5432/ragdb")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "text-embedding-ada-002")
 CHAT_MODEL = os.getenv("CHAT_MODEL", "glm-4")
 
@@ -58,6 +58,21 @@ REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 # Celery配置
 CELERY_ENABLED = os.getenv("CELERY_ENABLED", "true").lower() == "true"
+
+# 文件上传配置
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", os.path.join(current_dir, "uploads"))
+MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", "5242880"))  # 5MB
+
+# 服务器配置（用于构建图片完整URL）
+SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000")
+
+
+#链路追踪配置
+TRACING_ENABLED = os.getenv("TRACING_ENABLED", "false").lower() == "true"
+TRACING_SERVICE_NAME = os.getenv("TRACING_SERVICE_NAME", "rag-backend")
+TRACING_OTEL_ENDPOINT = os.getenv("TRACING_OTEL_ENDPOINT", "http://localhost:4317")
+TRACING_API_KEY = os.getenv("TRACING_API_KEY", "")
+
 
 # 验证必要的环境变量
 def validate_config():
@@ -97,5 +112,7 @@ def get_settings():
         "use_chunk_retrieval": USE_CHUNK_RETRIEVAL,
         "embedding_backend": EMBEDDING_BACKEND,
         "huggingface_model": HUGGINGFACE_MODEL,
-        "embedding_device": EMBEDDING_DEVICE
+        "embedding_device": EMBEDDING_DEVICE,
+        "upload_dir": UPLOAD_DIR,
+        "max_upload_size": MAX_UPLOAD_SIZE
     }

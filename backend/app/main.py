@@ -3,14 +3,27 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 from prometheus_client import make_asgi_app
-from app.routers import documents, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains, classification, query_v2, performance, websocket, document_index
+from app.routers import documents, query, logs, settings, llm_models, auth, chat, users, roles, dashboard, knowledge_domains, classification, query_v2, performance, websocket, document_index, chat_images
 from app.config.logging_config import setup_logging, get_app_logger
 from app.middleware.logging_middleware import LoggingMiddleware, ErrorLoggingMiddleware, PerformanceLoggingMiddleware
 from app.config.settings import validate_config
 
-from traceloop.sdk import Traceloop
 
-#Traceloop.init(api_key="tl_09341271a5434811bc237a03b15bb9a2")
+from app.config.settings import TRACING_ENABLED, TRACING_SERVICE_NAME, TRACING_OTEL_ENDPOINT, TRACING_API_KEY
+
+if TRACING_ENABLED: 
+   print("链路追踪已启用，正在初始化 Traceloop...")
+   from traceloop.sdk import Traceloop
+   # Traceloop.init(api_key="tl_09341271a5434811bc237a03b15bb9a2")
+
+   Traceloop.init(
+    app_name=TRACING_SERVICE_NAME,
+    disable_batch=True,
+    api_endpoint=TRACING_OTEL_ENDPOINT,
+    headers={"x-api-key": f"{TRACING_API_KEY}"},
+   )
+
+
 
 # 设置日志配置
 loggers = setup_logging()
@@ -39,6 +52,11 @@ async def startup_event():
         from app.models.database import Base as DocumentBase
         from app.models.document import Base as DocumentModelBase
         from app.models.knowledge_domain import Base as KnowledgeDomainBase
+        from app.models.index_record import Base as IndexRecordBase
+        from app.models.chat import Base as ChatBase
+
+
+
 
         engine = get_engine()
 
@@ -63,6 +81,10 @@ async def startup_event():
         from app.models.index_record import Base as IndexRecordBase
         IndexRecordBase.metadata.create_all(bind=engine)
         logger.info("Index record tables initialized successfully")
+
+        # 创建聊天相关表
+        ChatBase.metadata.create_all(bind=engine)
+        logger.info("Chat related tables initialized successfully")
 
         # 初始化 Reranker 模型 (如果启用)
         from app.config.settings import ENABLE_RERANK
@@ -145,6 +167,7 @@ app.include_router(websocket.router, tags=["WebSocket"])
 
 # 注册文档索引管理路由
 app.include_router(document_index.router, prefix="/api", tags=["文档索引"])
+app.include_router(chat_images.router, tags=["聊天图片"])
 
 # 添加 Prometheus metrics 端点
 metrics_app = make_asgi_app()
