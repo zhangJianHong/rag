@@ -4,6 +4,8 @@
 
 本系统是一个基于检索增强生成（RAG）技术的智能问答系统，能够处理用户上传的文档并提供智能问答服务。
 
+**📖 完整技术文档**: [文档中心](docs/INDEX.md)
+
 ## 功能特性
 
 - **文档上传**: 支持 PDF 和 TXT 格式的文档上传
@@ -229,6 +231,23 @@ npm run dev
 - Axios: HTTP 客户端
 - Vite: 构建工具
 
+## 文档资源
+
+### 📖 技术文档
+完整的技术文档请访问 **[文档中心](docs/INDEX.md)**
+
+### 快速导航
+- **[快速开始](docs/getting-started/)** - 快速了解和上手项目
+- **[架构设计](docs/architecture/)** - 系统架构和数据库设计
+- **[功能文档](docs/features/)** - 各功能模块的实现文档
+- **[运维指南](docs/operations/)** - 部署、配置、监控和优化
+- **[开发指南](docs/development/)** - 开发环境和代码规范
+
+### 核心文档
+- [增量索引系统](docs/features/incremental-indexing.md) - 智能文档增量更新
+- [系统设计文档](docs/architecture/system-design.md) - 整体架构设计
+- [性能优化指南](docs/operations/performance-optimization.md) - 系统性能优化
+
 ## 许可证
 
 本项目仅用于学习和演示目的。
@@ -238,3 +257,4 @@ npm run dev
 如有问题或建议，请通过以下方式联系：
 - 创建 GitHub Issue
 - 发送邮件至维护者
+- 查阅 [文档中心](docs/INDEX.md) 获取详细技术资料
