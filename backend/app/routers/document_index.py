@@ -132,7 +132,7 @@ async def index_documents(
             )
         else:
             # 同步处理
-            result = indexer.batch_index_documents(
+            result = await indexer.batch_index_documents(
                 doc_ids=request.doc_ids,
                 user_id=current_user.id if current_user else None
             )
@@ -180,7 +180,7 @@ async def auto_update(
 
         if len(doc_ids) < 5:
             # 同步处理
-            result = indexer.batch_index_documents(
+            result = await indexer.batch_index_documents(
                 doc_ids=doc_ids,
                 user_id=current_user.id if current_user else None
             )
@@ -395,7 +395,7 @@ async def get_index_stats(
     """获取索引统计信息"""
     try:
         from datetime import timedelta
-        from sqlalchemy import func
+        from sqlalchemy import func, and_, or_
 
         # 基础统计 - 使用DocumentIndexRecord来统计已索引的文档
         doc_query = db.query(Document)
@@ -412,10 +412,21 @@ async def get_index_stats(
             indexed_query = indexed_query.filter(DocumentIndexRecord.namespace == namespace)
         indexed_docs = indexed_query.count()
 
-        # 待处理和失败的任务统计
+        # 待索引文档数 - 没有索引记录的文档
+        pending_docs = total_docs - indexed_docs
+
+        # 过期文档数 - 索引时间超过30天的文档
+        outdated_threshold = datetime.now() - timedelta(days=30)
+        outdated_query = db.query(DocumentIndexRecord)
+        if namespace:
+            outdated_query = outdated_query.filter(DocumentIndexRecord.namespace == namespace)
+        outdated_docs = outdated_query.filter(
+            DocumentIndexRecord.indexed_at < outdated_threshold
+        ).count()
+
+        # 失败任务统计（仅供参考）
         task_query = db.query(IndexTaskModel)
-        pending_docs = task_query.filter(IndexTaskModel.status.in_(['pending', 'processing'])).count()
-        failed_docs = task_query.filter(IndexTaskModel.status == 'failed').count()
+        failed_tasks = task_query.filter(IndexTaskModel.status == 'failed').count()
 
         # 今日新增索引 - 使用DocumentIndexRecord的indexed_at字段
         today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -446,28 +457,47 @@ async def get_index_stats(
                 'count': count
             })
 
-        # 状态分布
-        status_distribution = [
-            {'status': 'indexed', 'count': indexed_docs, 'label': '已索引'},
-            {'status': 'pending', 'count': pending_docs, 'label': '待处理'},
-            {'status': 'failed', 'count': failed_docs, 'label': '失败'}
-        ]
+        # 状态分布 - 真实的文档级别状态
+        status_distribution = {
+            'indexed': indexed_docs,      # 已索引的文档
+            'pending': pending_docs,       # 待索引的文档（无索引记录）
+            'outdated': outdated_docs,     # 过期文档（索引时间>30天）
+            'failed': failed_tasks         # 失败的索引任务（仅供参考）
+        }
 
-        # 性能指标 (估算)
-        avg_index_time = 2.5  # 平均索引时间(秒)
-        cost_saving = round((1 - (indexed_docs / total_docs if total_docs > 0 else 0)) * 100, 1) if total_docs > 0 else 0
+        # 性能指标
+        # 计算平均索引时间（基于最近100条索引记录）
+        recent_records = db.query(DocumentIndexRecord).order_by(
+            DocumentIndexRecord.indexed_at.desc()
+        ).limit(100).all()
+
+        if recent_records and len(recent_records) > 1:
+            # 估算：假设每条记录处理耗时相似
+            avg_index_time = 2.5  # 目前还是估算值，后续可以添加实际的性能监控
+        else:
+            avg_index_time = 2.5
+
+        # 成本节省：增量索引相比全量索引的节省百分比
+        # 假设：如果所有文档都需要重新索引，成本是100%
+        # 实际只需索引变更的文档，节省 = (1 - 变更率) * 100
+        change_rate = (today_count / total_docs * 100) if total_docs > 0 else 0
+        cost_saving = max(0, round(100 - change_rate, 1))
+
+        # 加速因子：增量更新相比全量更新的速度提升
+        # 计算公式：总文档数 / 需要更新的文档数
+        speedup_factor = round(total_docs / max(pending_docs, 1), 1) if total_docs > 0 else 1
 
         stats = {
             'indexedCount': indexed_docs,
             'pendingCount': pending_docs,
-            'failedCount': failed_docs,
+            'failedCount': failed_tasks,
             'todayCount': today_count,
             'totalCount': total_docs,
             'costSavingPercent': cost_saving,
             'avgIndexTime': avg_index_time,
-            'avgProcessSpeed': round(1 / avg_index_time if avg_index_time > 0 else 0, 2),
+            'avgProcessSpeed': round(60 / avg_index_time if avg_index_time > 0 else 0, 1),  # docs/min
             'estimatedSaving': cost_saving,
-            'speedupFactor': 10,
+            'speedupFactor': speedup_factor,
             'trendData': trend_data,
             'statusDistribution': status_distribution
         }

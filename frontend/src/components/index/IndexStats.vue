@@ -67,7 +67,7 @@
           </div>
           <div v-else class="trend-chart">
             <!-- 简单的趋势图 -->
-            <div class="trend-items">
+            <div class="trend-items" :class="{ 'trend-items-many': trendData.length > 15 }">
               <div
                 v-for="(item, index) in trendData"
                 :key="index"
@@ -77,11 +77,11 @@
                   <div
                     class="trend-bar"
                     :style="{
-                      height: `${(item.count / maxTrendValue) * 100}%`,
-                      background: 'var(--tech-gradient)'
+                      height: item.count > 0 ? `${Math.max((item.count / maxTrendValue) * 100, 5)}%` : '5%',
+                      background: item.count > 0 ? 'var(--tech-gradient)' : 'rgba(144, 147, 153, 0.3)'
                     }"
                   >
-                    <span class="trend-value">{{ item.count }}</span>
+                    <span v-if="item.count > 0" class="trend-value">{{ item.count }}</span>
                   </div>
                 </div>
                 <span class="trend-label">{{ item.date }}</span>
@@ -215,7 +215,9 @@ let refreshTimer = null
 // 计算属性
 const maxTrendValue = computed(() => {
   if (trendData.value.length === 0) return 1
-  return Math.max(...trendData.value.map(item => item.count))
+  const max = Math.max(...trendData.value.map(item => item.count))
+  // 如果最大值为0，返回1避免除以0；否则返回最大值
+  return max > 0 ? max : 1
 })
 
 // 方法
@@ -228,59 +230,68 @@ const loadStats = async () => {
     })
 
     if (data) {
-      // 更新统计数据
+      // 更新统计数据 - 使用后端返回的camelCase字段名
       stats.value = {
-        indexedCount: data.indexed_count || 0,
-        pendingCount: data.pending_count || 0,
-        todayCount: data.today_count || 0,
-        costSavingPercent: data.cost_saving_percent || 0,
-        avgIndexTime: data.avg_index_time?.toFixed(2) || 0,
-        avgProcessSpeed: data.avg_process_speed?.toFixed(1) || 0,
-        estimatedSaving: data.estimated_saving?.toFixed(2) || 0,
-        speedupFactor: data.speedup_factor?.toFixed(1) || 0
+        indexedCount: data.indexedCount || 0,
+        pendingCount: data.pendingCount || 0,
+        todayCount: data.todayCount || 0,
+        costSavingPercent: data.costSavingPercent || 0,
+        avgIndexTime: data.avgIndexTime?.toFixed(2) || 0,
+        avgProcessSpeed: data.avgProcessSpeed?.toFixed(1) || 0,
+        estimatedSaving: data.estimatedSaving?.toFixed(2) || 0,
+        speedupFactor: data.speedupFactor?.toFixed(1) || 0
       }
 
-      // 更新趋势数据
-      if (data.daily_stats && Array.isArray(data.daily_stats)) {
-        trendData.value = data.daily_stats.map(item => ({
+      // 更新趋势数据 - 使用后端返回的trendData字段
+      // 只有在有数据时才更新，避免闪现空状态
+      if (data.trendData && Array.isArray(data.trendData) && data.trendData.length > 0) {
+        trendData.value = data.trendData.map(item => ({
           date: formatDate(item.date),
           count: item.count || 0
         }))
+      } else if (!trendData.value.length) {
+        // 只有在当前没有数据时才设置为空数组
+        trendData.value = []
       }
 
-      // 更新状态分布
-      if (data.status_distribution) {
-        const total = Object.values(data.status_distribution).reduce((sum, count) => sum + count, 0)
-        statusDistribution.value = [
+      // 更新状态分布 - 使用后端返回的statusDistribution字段
+      if (data.statusDistribution) {
+        const total = Object.values(data.statusDistribution).reduce((sum, count) => sum + count, 0)
+        const newDistribution = [
           {
             status: 'indexed',
             label: '已索引',
-            count: data.status_distribution.indexed || 0,
-            percentage: total > 0 ? Math.round((data.status_distribution.indexed || 0) / total * 100) : 0,
+            count: data.statusDistribution.indexed || 0,
+            percentage: total > 0 ? Math.round((data.statusDistribution.indexed || 0) / total * 100) : 0,
             color: '#67c23a'
           },
           {
             status: 'pending',
             label: '待索引',
-            count: data.status_distribution.pending || 0,
-            percentage: total > 0 ? Math.round((data.status_distribution.pending || 0) / total * 100) : 0,
+            count: data.statusDistribution.pending || 0,
+            percentage: total > 0 ? Math.round((data.statusDistribution.pending || 0) / total * 100) : 0,
             color: '#e6a23c'
           },
           {
             status: 'outdated',
             label: '已过期',
-            count: data.status_distribution.outdated || 0,
-            percentage: total > 0 ? Math.round((data.status_distribution.outdated || 0) / total * 100) : 0,
+            count: data.statusDistribution.outdated || 0,
+            percentage: total > 0 ? Math.round((data.statusDistribution.outdated || 0) / total * 100) : 0,
             color: '#909399'
           },
           {
             status: 'failed',
             label: '失败',
-            count: data.status_distribution.failed || 0,
-            percentage: total > 0 ? Math.round((data.status_distribution.failed || 0) / total * 100) : 0,
+            count: data.statusDistribution.failed || 0,
+            percentage: total > 0 ? Math.round((data.statusDistribution.failed || 0) / total * 100) : 0,
             color: '#f56c6c'
           }
         ].filter(item => item.count > 0) // 只显示有数据的状态
+
+        // 只有在有数据时才更新
+        if (newDistribution.length > 0) {
+          statusDistribution.value = newDistribution
+        }
       }
     }
   } catch (error) {
@@ -459,13 +470,47 @@ defineExpose({
     align-items: flex-end;
     height: 220px;
     padding: 0 10px;
+    transition: all 0.3s ease;
+
+    &.trend-items-many {
+      // 当数据点超过15个时，启用横向滚动
+      overflow-x: auto;
+      overflow-y: hidden;
+      justify-content: flex-start;
+
+      // 自定义滚动条样式
+      &::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: rgba(17, 24, 39, 0.6);
+        border-radius: 3px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: var(--tech-glass-border);
+        border-radius: 3px;
+
+        &:hover {
+          background: var(--tech-neon-blue);
+        }
+      }
+    }
 
     .trend-item {
       flex: 1;
+      min-width: 30px; // 设置最小宽度，避免30天时太窄
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 8px;
+
+      .trend-items-many & {
+        // 在多数据模式下，设置固定宽度而非flex
+        flex: 0 0 auto;
+        width: 40px;
+      }
 
       .trend-bar-container {
         flex: 1;
@@ -484,9 +529,11 @@ defineExpose({
           justify-content: center;
           padding-top: 4px;
           transition: all 0.3s ease;
+          min-height: 5%; // 设置最小高度
 
           &:hover {
             opacity: 0.8;
+            transform: translateY(-2px);
           }
 
           .trend-value {
@@ -501,6 +548,13 @@ defineExpose({
         font-size: 11px;
         color: var(--tech-text-secondary);
         white-space: nowrap;
+
+        .trend-items-many & {
+          // 在多数据模式下，旋转标签以节省空间
+          transform: rotate(-45deg);
+          transform-origin: center;
+          font-size: 10px;
+        }
       }
     }
   }

@@ -249,7 +249,7 @@ class ChangeDetector:
             namespace: 领域命名空间筛选
 
         Returns:
-            变更摘要字典
+            变更摘要字典，包含完整的文档信息供前端使用
         """
         # 先基于时间戳快速筛选
         candidates = self.detect_changes_by_timestamp(namespace=namespace)
@@ -263,16 +263,26 @@ class ChangeDetector:
         # 检测已删除的文档
         deleted_doc_ids = self.detect_deleted_documents(namespace=namespace)
 
+        # 将文档对象转换为字典（包含前端需要的字段）
+        def doc_to_dict(doc: Document) -> dict:
+            return {
+                'id': doc.id,
+                'filename': doc.filename,
+                'namespace': doc.namespace,
+                'created_at': doc.created_at,
+                'content_preview': doc.content[:100] if doc.content else ''
+            }
+
         summary = {
             'total_candidates': len(candidates),
-            'new_documents': len(new_docs),
-            'modified_documents': len(modified_docs),
-            'unchanged_documents': len(unchanged_docs),
+            'new_documents': [doc_to_dict(doc) for doc in new_docs],  # 完整文档对象
+            'modified_documents': [doc_to_dict(doc) for doc in modified_docs],  # 完整文档对象
+            'unchanged_count': len(unchanged_docs),  # 改为count后缀
             'deleted_documents': len(deleted_doc_ids),
             'needs_update': len(new_docs) + len(modified_docs),
             'needs_delete': len(deleted_doc_ids),
-            'new_doc_ids': [doc.id for doc in new_docs],
-            'modified_doc_ids': [doc.id for doc in modified_docs],
+            'new_doc_ids': [doc.id for doc in new_docs],  # 保留ID列表供兼容
+            'modified_doc_ids': [doc.id for doc in modified_docs],  # 保留ID列表供兼容
             'deleted_doc_ids': deleted_doc_ids,
             'namespace': namespace or 'all',
             'detected_at': datetime.now().isoformat()

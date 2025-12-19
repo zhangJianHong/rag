@@ -25,7 +25,7 @@ class IncrementalIndexer:
         self.change_detector = ChangeDetector(db)
         self.embedding_service = embedding_service
 
-    def index_document(
+    async def index_document(
         self,
         doc: Document,
         user_id: Optional[int] = None,
@@ -85,8 +85,8 @@ class IncrementalIndexer:
             chunks = self._chunk_document(doc)
             result['chunks_added'] = len(chunks)
 
-            # 批量生成嵌入向量
-            embeddings = self._generate_embeddings_batch([chunk['content'] for chunk in chunks])
+            # 批量生成嵌入向量 - 使用 await
+            embeddings = await self._generate_embeddings_batch([chunk['content'] for chunk in chunks])
 
             # 保存文档块
             for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
@@ -113,6 +113,9 @@ class IncrementalIndexer:
                 result['action'] = 'updated'
             else:
                 # 创建新记录
+                # 尝试获取文件修改时间，如果Document模型没有该字段则使用None
+                file_modified_at = getattr(doc, 'file_modified_at', None)
+
                 index_record = DocumentIndexRecord(
                     doc_id=doc.id,
                     content_hash=content_hash,
@@ -120,16 +123,11 @@ class IncrementalIndexer:
                     vector_count=len(embeddings),
                     indexed_at=datetime.now(),
                     file_size=len(doc.content or ""),
-                    file_modified_at=doc.file_modified_at,
+                    file_modified_at=file_modified_at,
                     namespace=doc.namespace
                 )
                 self.db.add(index_record)
                 result['action'] = 'created'
-
-            # 更新文档表的索引状态
-            doc.content_hash = content_hash
-            doc.last_indexed_at = datetime.now()
-            doc.index_status = 'indexed'
 
             # 记录变更历史
             self._record_change_history(
@@ -156,10 +154,6 @@ class IncrementalIndexer:
             result['status'] = 'failed'
             result['error'] = str(e)
             logger.error(f"文档 {doc.id} 索引失败: {e}", exc_info=True)
-
-            # 更新文档状态为失败
-            doc.index_status = 'failed'
-            self.db.commit()
 
         return result
 
@@ -226,7 +220,7 @@ class IncrementalIndexer:
 
         return result
 
-    def batch_index_documents(
+    async def batch_index_documents(
         self,
         doc_ids: List[int],
         user_id: Optional[int] = None,
@@ -264,8 +258,8 @@ class IncrementalIndexer:
                 })
                 continue
 
-            # 索引文档
-            result = self.index_document(doc, user_id=user_id)
+            # 索引文档 - 使用 await
+            result = await self.index_document(doc, user_id=user_id)
             results['details'].append(result)
 
             # 统计
@@ -325,7 +319,7 @@ class IncrementalIndexer:
 
         return chunks
 
-    def _generate_embeddings_batch(self, texts: List[str]) -> List:
+    async def _generate_embeddings_batch(self, texts: List[str]) -> List:
         """
         批量生成嵌入向量
 
@@ -336,11 +330,8 @@ class IncrementalIndexer:
             嵌入向量列表
         """
         try:
-            # 使用embedding service批量生成
-            embeddings = []
-            for text in texts:
-                embedding = self.embedding_service.get_embedding(text)
-                embeddings.append(embedding)
+            # 使用embedding service的批量方法
+            embeddings = await self.embedding_service.create_batch_embeddings(texts)
             return embeddings
         except Exception as e:
             logger.error(f"批量生成嵌入失败: {e}")

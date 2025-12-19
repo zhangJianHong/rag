@@ -20,10 +20,10 @@ export const indexTaskService = {
     try {
       const response = await api.post('/api/index/detect-changes', {
         namespace: params.namespace || 'default',
-        since_hours: params.sinceHours || 24,
-        force_check: params.forceCheck || false
+        since_hours: params.sinceHours || 24
       })
-      return response.data
+      // 解包IndexResponse，返回data字段
+      return response.data.data || response.data
     } catch (error) {
       console.error('检测文档变更失败:', error)
       ElMessage.error('检测文档变更失败: ' + (error.response?.data?.detail || error.message))
@@ -38,7 +38,7 @@ export const indexTaskService = {
         namespace: params.namespace || 'default',
         since_hours: params.sinceHours || 24
       })
-      return response.data
+      return response.data.data || response.data
     } catch (error) {
       console.error('自动更新失败:', error)
       ElMessage.error('自动更新失败: ' + (error.response?.data?.detail || error.message))
@@ -49,11 +49,13 @@ export const indexTaskService = {
   // 索引单个文档
   async indexDocument(docId, options = {}) {
     try {
-      const response = await api.post(`/api/index/document/${docId}`, {
+      // 使用批量索引接口处理单个文档
+      const response = await api.post('/api/index/index-documents', {
+        doc_ids: [docId],  // 传递单个文档ID的数组
         force: options.force || false,
-        user_id: options.userId
+        priority: options.priority || 5
       })
-      return response.data
+      return response.data.data || response.data
     } catch (error) {
       console.error('索引文档失败:', error)
       ElMessage.error('索引文档失败: ' + (error.response?.data?.detail || error.message))
@@ -62,13 +64,14 @@ export const indexTaskService = {
   },
 
   // 批量索引文档
-  async batchIndexDocuments(docIds, userId = null) {
+  async batchIndexDocuments(docIds) {
     try {
-      const response = await api.post('/api/index/batch', {
+      const response = await api.post('/api/index/index-documents', {
         doc_ids: docIds,
-        user_id: userId
+        force: false,
+        priority: 5
       })
-      return response.data
+      return response.data.data || response.data
     } catch (error) {
       console.error('批量索引失败:', error)
       ElMessage.error('批量索引失败: ' + (error.response?.data?.detail || error.message))
@@ -80,7 +83,7 @@ export const indexTaskService = {
   async deleteDocumentIndex(docId) {
     try {
       const response = await api.delete(`/api/index/document/${docId}`)
-      return response.data
+      return response.data.data || response.data
     } catch (error) {
       console.error('删除索引失败:', error)
       ElMessage.error('删除索引失败: ' + (error.response?.data?.detail || error.message))
@@ -99,7 +102,7 @@ export const indexTaskService = {
           offset: params.offset || 0
         }
       })
-      return response.data
+      return response.data.data || { records: [], total: 0 }
     } catch (error) {
       console.error('获取索引记录失败:', error)
       return { records: [], total: 0 }
@@ -116,7 +119,7 @@ export const indexTaskService = {
   async getTaskStatus(taskId) {
     try {
       const response = await api.get(`/api/index/task/${taskId}`)
-      return response.data
+      return response.data.data || response.data
     } catch (error) {
       console.error('获取任务状态失败:', error)
       throw error
@@ -133,7 +136,7 @@ export const indexTaskService = {
           offset: params.offset || 0
         }
       })
-      return response.data
+      return response.data.data || { tasks: [], total: 0 }
     } catch (error) {
       console.error('获取任务列表失败:', error)
       return { tasks: [], total: 0 }
@@ -144,7 +147,7 @@ export const indexTaskService = {
   async retryTask(taskId) {
     try {
       const response = await api.post(`/api/index/task/${taskId}/retry`)
-      return response.data
+      return response.data.data || response.data
     } catch (error) {
       console.error('重试任务失败:', error)
       ElMessage.error('重试任务失败: ' + (error.response?.data?.detail || error.message))
@@ -156,7 +159,7 @@ export const indexTaskService = {
   async cancelTask(taskId) {
     try {
       const response = await api.post(`/api/index/task/${taskId}/cancel`)
-      return response.data
+      return response.data.data || response.data
     } catch (error) {
       console.error('取消任务失败:', error)
       ElMessage.error('取消任务失败: ' + (error.response?.data?.detail || error.message))
@@ -179,7 +182,8 @@ export const indexTaskService = {
           days: params.days || 7
         }
       })
-      return response.data
+      // 解包IndexResponse，返回data字段中的统计数据
+      return response.data.data || response.data || null
     } catch (error) {
       console.error('获取索引统计失败:', error)
       return null
@@ -196,7 +200,7 @@ export const indexTaskService = {
           offset: params.offset || 0
         }
       })
-      return response.data
+      return response.data.data || { history: [], total: 0 }
     } catch (error) {
       console.error('获取变更历史失败:', error)
       return { history: [], total: 0 }
